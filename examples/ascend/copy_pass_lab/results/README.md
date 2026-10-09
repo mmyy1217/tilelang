@@ -24,6 +24,10 @@ passes.tsv 的 before_line / after_line 指向同目录 pass.log；text_changed 
 | [pipeline](verified-context/pipeline/input.tir) | tl.MaterializeMultiBuffer | [前](verified-context/pipeline/pass.log#L1707) / [后](verified-context/pipeline/pass.log#L1762) | [pass 索引](verified-context/pipeline/passes.tsv) / [CCE](verified-context/pipeline/kernel.cpp) |
 | [fp4](verified-context/fp4/input.tir) | tl.RewriteFp4ToFp4x2 | [前](verified-context/fp4/pass.log#L2801) / [后](verified-context/fp4/pass.log#L2824) | [pass 索引](verified-context/fp4/passes.tsv) / [CCE](verified-context/fp4/kernel.cpp) |
 
+## 逐用例学习笔记
+
+- [dma：嵌套 IR、DMA 参数、长度限制与硬件执行](verified-context/dma/学习笔记.md)
+
 ## 来源与验证边界
 
 - 编译器基线：47976f210de3598444003e9b05de8204dfa7ff88；TVM：4211874e9e4b8770fd20ad0d98ab80afd1df5028。
