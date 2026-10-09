@@ -5,6 +5,9 @@ from dataclasses import asdict
 from datetime import datetime
 import hashlib
 import importlib.util
+import inspect
+from functools import partial
+import re
 import json
 from pathlib import Path
 import subprocess
@@ -21,7 +24,10 @@ from tilelang.instrumentation import (
     compile_pass_instrumentation,
 )
 
-from kernels import CASES
+from kernels import CASES as BASE_CASES
+from kernels_extended import CASES as EXTENDED_CASES, EXPECTED_ERRORS
+
+CASES = {**BASE_CASES, **EXTENDED_CASES}
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -116,7 +122,7 @@ def external_factory(spec):
     return factory, path
 
 
-def run_case(name, factory, directory, kernel_path):
+def run_case(name, factory, directory, kernel_path, expected_error=None):
     directory.mkdir(parents=True, exist_ok=False)
     metadata = {
         "case": name,
@@ -130,7 +136,14 @@ def run_case(name, factory, directory, kernel_path):
         "enable_host_codegen": False,
         "target": "ascend",
         "status": "started",
+        "expected_error": expected_error,
     }
+    if name in CASES:
+        snapshot = kernel_path.read_text() + f"\n\ndef make_kernel():\n    return CASES[{name!r}]()\n"
+        (directory / "kernel.py").write_text(snapshot)
+        metadata["kernel_snapshot_sha256"] = digest(snapshot)
+        if isinstance(factory, partial):
+            metadata["factory_parameters"] = {"args": factory.args, "kwargs": factory.keywords}
     success = False
     with (directory / "pass.log").open("w") as stream:
         tool = DumpTool(stream)
@@ -159,11 +172,16 @@ def run_case(name, factory, directory, kernel_path):
             if not tool.records or any(record["status"] != "completed" for record in tool.records):
                 raise RuntimeError("Pass dump is empty or contains incomplete callbacks")
             metadata["status"] = "lowered_to_cce_source"
-            success = True
+            success = expected_error is None
+            if expected_error is not None:
+                metadata["expectation_error"] = "Expected a diagnostic, but lowering succeeded"
         except Exception:
             metadata["status"] = "failed"
             metadata["error"] = traceback.format_exc()
             tool.write(f"\n[COMPILATION ERROR]\n{metadata['error']}\n")
+            if expected_error is not None:
+                success = re.search(expected_error, metadata["error"], re.IGNORECASE) is not None
+                metadata["expected_error_matched"] = success
         metadata["passes"] = tool.records
         metadata["pass_count"] = len(tool.records)
         (directory / "manifest.json").write_text(json.dumps(metadata, indent=2) + "\n")
@@ -174,7 +192,8 @@ def run_case(name, factory, directory, kernel_path):
                 f"{record.get('changed', '')}\t{record['before_line']}\t{record.get('after_line', '')}\n"
             )
         (directory / "passes.tsv").write_text("".join(index))
-    print(f"{name}: {metadata['status']}, {metadata['pass_count']} passes, {directory / 'pass.log'}", flush=True)
+    metadata_label = "expected_rejection" if metadata.get("expected_error_matched") else metadata["status"]
+    print(f"{name}: {metadata_label}, {metadata['pass_count']} passes, {directory / 'pass.log'}", flush=True)
     if not success:
         print(metadata.get("error", "Compilation failed"), file=sys.stderr)
     return success
@@ -200,7 +219,11 @@ def main():
     else:
         kernel_path = Path(__file__).with_name("kernels.py")
         selected = CASES if args.all else {args.case or "dma": CASES[args.case or "dma"]}
-    results = [run_case(name, factory, output / name, kernel_path) for name, factory in selected.items()]
+    results = []
+    for name, factory in selected.items():
+        source_factory = factory.func if isinstance(factory, partial) else factory
+        source_path = kernel_path if args.kernel else Path(inspect.getsourcefile(source_factory))
+        results.append(run_case(name, factory, output / name, source_path, EXPECTED_ERRORS.get(name) if not args.kernel else None))
     return 0 if all(results) else 1
 
 
