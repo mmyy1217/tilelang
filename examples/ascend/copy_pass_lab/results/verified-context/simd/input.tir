@@ -1,0 +1,24 @@
+# from tvm.script import tirx as T
+
+@T.prim_func
+def main(src_handle: T.handle, dst_handle: T.handle):
+    src = T.match_buffer(src_handle, (256,), strides=(1,))
+    dst = T.match_buffer(dst_handle, (256,), strides=(1,))
+    # with T.sblock("root"):
+    for bx in T.thread_binding(1, thread="blockIdx.x"):
+        tx: T.int32 = T.launch_thread_idx(0)
+        ty: T.int32 = T.launch_thread_idx(1)
+        tz: T.int32 = T.launch_thread_idx(2)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            a = T.sblock_alloc_buffer((256,), scope="shared.dyn")
+            b = T.sblock_alloc_buffer((256,), scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 256), T.region(a[0], 2, 256))
+            with T.sblock("SIMD_VF", no_realize=True):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"tl.vf_source_index": T.int64(0)})
+                T.attr("simdvf", "tl.simdvf_scope", 1)
+                T.ascend_copy(T.region(a[0], 1, 256), T.region(b[0], 2, 256))
+            T.ascend_copy(T.region(b[0], 1, 256), T.region(dst[0], 2, 256))

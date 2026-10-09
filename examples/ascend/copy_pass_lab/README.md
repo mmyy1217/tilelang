@@ -2,6 +2,10 @@
 
 在没有 NPU 的机器上运行真实 Ascend TIR 流水线，记录每个 pass 前后的 IR，并生成 CCE 源码。入口使用 `tilelang.lower(..., enable_host_codegen=False, enable_device_compile=False)`；不启动 kernel，也不调用 bisheng 编译设备二进制。工具会同时进入 Ascend Target context，满足 VF 布局推导的要求。
 
+## 已归档结果
+
+直接阅读 [13 个用例的完整结果与 pass 阅读索引](results/README.md)。无需安装环境。
+
 ## 使用
 
 在本 worktree 根目录执行：

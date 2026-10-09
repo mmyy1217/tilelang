@@ -1,0 +1,42 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(a: T.handle("bfloat16", "global"), b: T.handle("bfloat16", "global"), c: T.handle("float32", "global")):
+        T.func_attr({"calling_conv": 2, "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [0, 1]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        buf_dyn_l1 = T.alloc_buffer((T.int64(8192),), "uint8", scope="shared.l1.dyn")
+        a_l1 = T.decl_buffer((2048,), "bfloat16", data=buf_dyn_l1.data, scope="shared.l1.dyn")
+        b_l1 = T.decl_buffer((2048,), "bfloat16", data=buf_dyn_l1.data, scope="shared.l1.dyn")
+        a_l0 = T.alloc_buffer((2048,), "bfloat16", scope="shared.l0a")
+        a_l0_1 = T.decl_buffer((2048,), "bfloat16", data=a_l0.data, scope="shared.l0a")
+        b_l0 = T.alloc_buffer((2048,), "bfloat16", scope="shared.l0b")
+        b_l0_1 = T.decl_buffer((2048,), "bfloat16", data=b_l0.data, scope="shared.l0b")
+        acc = T.alloc_buffer((1024,), scope="shared.l0c")
+        acc_1 = T.decl_buffer((1024,), data=acc.data, scope="shared.l0c")
+        with T.sblock("CUBE", no_realize=True):
+            T.reads()
+            T.writes()
+            T.ascend_fill_l1(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 2048, 2048, 2), 3072, T.uint32(0), 1, 32, 0, 16)
+            T.ascend_fill_l1(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 0, 2048, 2), 3072, T.uint32(0), 1, 32, 0, 16)
+            T.ascend_copy_gm_to_cbuf(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 0, 1457, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), a, 0, 1457, 1), 0, 94, 0, 31, 47, 0, 0, 0, 32, "")
+            T.ascend_copy_gm_to_cbuf(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 2048, 893, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), b, 0, 893, 1), 0, 94, 0, 19, 47, 0, 0, 0, 32, "")
+            T.ascend_pipe_barrier("PIPE_MTE2")
+            T.ascend_fill_l1(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 2048, 2048, 2), 608, T.uint32(0), 4, 13, 19, 16)
+            T.ascend_set_flag("MTE2_MTE1", 1)
+            T.ascend_pipe_barrier("PIPE_MTE2")
+            T.ascend_fill_l1(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 0, 2048, 2), 992, T.uint32(0), 4, 1, 31, 16)
+            T.ascend_set_flag("MTE2_MTE1", 0)
+            T.ascend_wait_flag("MTE2_MTE1", 1)
+            T.ascend_load_cbuf_to_cb(T.tvm_access_ptr(T.type_annotation("bfloat16"), b_l0.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 2048, 2048, 1), 0, 0, 2, 4, 2, 2, 0)
+            T.ascend_wait_flag("MTE2_MTE1", 0)
+            T.ascend_load_cbuf_to_ca(T.tvm_access_ptr(T.type_annotation("bfloat16"), a_l0.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_l1.data, 0, 2048, 1), 0, 0, 2, 4, 2, 2, 0)
+            T.ascend_set_flag("MTE1_M", 0)
+            T.ascend_wait_flag("MTE1_M", 0)
+            with T.attr(0, "lexical_alloc_scope", 1):
+                T.ascend_mad(T.tvm_access_ptr(T.type_annotation("float32"), acc.data, 0, 1024, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), a_l0.data, 0, 2048, 1), T.tvm_access_ptr(T.type_annotation("bfloat16"), b_l0.data, 0, 2048, 1), 32, 64, 32, 0, 1, 0, T.bool(True))
+            T.ascend_set_flag("M_FIX", 0)
+            T.ascend_wait_flag("M_FIX", 0)
+            T.ascend_copy_matrix_cc_to_gm(T.tvm_access_ptr(T.type_annotation("float32"), c, 0, 589, 2), T.tvm_access_ptr(T.type_annotation("float32"), acc.data, 0, 1024, 1), 0, 19, 31, 19, 32, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)

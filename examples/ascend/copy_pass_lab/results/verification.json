@@ -1,0 +1,86 @@
+{
+  "built_in_count": 13,
+  "total_pass_callbacks": 1122,
+  "custom_pass_count": 86,
+  "failure_capture": "passed",
+  "cases": {
+    "dma": {
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "strided": {
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "padding": {
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1999,
+      "after_line": 2030
+    },
+    "tail": {
+      "pass_count": 86,
+      "changed_pass": "tl.AscendInsertOOBPadding",
+      "before_line": 916,
+      "after_line": 940
+    },
+    "dynamic": {
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2075,
+      "after_line": 2108
+    },
+    "gemm": {
+      "pass_count": 88,
+      "changed_pass": "tl.AscendInsertOOBPadding",
+      "before_line": 12908,
+      "after_line": 13558
+    },
+    "dual_dma": {
+      "pass_count": 86,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 360,
+      "after_line": 380
+    },
+    "dual_gemm": {
+      "pass_count": 88,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 3505,
+      "after_line": 3710
+    },
+    "nz_scatter": {
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 7835,
+      "after_line": 8038
+    },
+    "simd": {
+      "pass_count": 86,
+      "changed_pass": "tl.AscendSimdVFLowerParallel",
+      "before_line": 2429,
+      "after_line": 2468
+    },
+    "simt": {
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2738,
+      "after_line": 2780
+    },
+    "pipeline": {
+      "pass_count": 86,
+      "changed_pass": "tl.MaterializeMultiBuffer",
+      "before_line": 1707,
+      "after_line": 1762
+    },
+    "fp4": {
+      "pass_count": 86,
+      "changed_pass": "tl.RewriteFp4ToFp4x2",
+      "before_line": 2801,
+      "after_line": 2824
+    }
+  }
+}

@@ -1,0 +1,20 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(dst: T.handle("float32", "global"), src: T.handle("float32", "global"), n: T.int32):
+        T.func_attr({"calling_conv": 2, "dyn_shared_memory_buf": 512, "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x", "tirx.use_dyn_shared_memory"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [1]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        ub = T.alloc_buffer((128,), scope="shared.dyn")
+        ub_1 = T.decl_buffer((128,), data=ub.data, scope="shared.dyn")
+        with T.sblock("VECTOR", no_realize=True):
+            T.reads()
+            T.writes()
+            if 0 < n:
+                T.ascend_copy_gm_to_ubuf(T.tvm_access_ptr(T.type_annotation("float32"), ub.data, 0, T.min(n, 4) * 32, 2), T.tvm_access_ptr(T.type_annotation("float32"), src, 0, T.min(n, 4) * 32, 1), 0, T.min(n, 4), 128, 0, 0, 0, 0, 256, 128)
+            T.ascend_set_flag("MTE2_MTE3", 0)
+            T.ascend_wait_flag("MTE2_MTE3", 0)
+            if 0 < n:
+                T.ascend_copy_ubuf_to_gm(T.tvm_access_ptr(T.type_annotation("float32"), dst, 0, T.min(n, 4) * 32, 2), T.tvm_access_ptr(T.type_annotation("float32"), ub.data, 0, T.min(n, 4) * 32, 1), 0, 1, T.min(n, 4) * 128, 4, T.min(n, 4) * 128, T.min(n, 4) * 128)
