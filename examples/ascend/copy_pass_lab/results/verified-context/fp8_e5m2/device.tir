@@ -1,0 +1,18 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(dst: T.handle("float8_e5m2", "global"), src: T.handle("float8_e5m2", "global")):
+        T.func_attr({"calling_conv": 2, "dyn_shared_memory_buf": 64, "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x", "tirx.use_dyn_shared_memory"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [1]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        ub = T.alloc_buffer((64,), "float8_e5m2", scope="shared.dyn")
+        ub_1 = T.decl_buffer((64,), "float8_e5m2", data=ub.data, scope="shared.dyn")
+        with T.sblock("VECTOR", no_realize=True):
+            T.reads()
+            T.writes()
+            T.ascend_copy_gm_to_ubuf(T.tvm_access_ptr(T.type_annotation("float8_e5m2"), ub.data, 0, 64, 2), T.tvm_access_ptr(T.type_annotation("float8_e5m2"), src, 0, 64, 1), 0, 1, 64, 0, 0, 0, 0, 64, 64)
+            T.ascend_set_flag("MTE2_MTE3", 0)
+            T.ascend_wait_flag("MTE2_MTE3", 0)
+            T.ascend_copy_ubuf_to_gm(T.tvm_access_ptr(T.type_annotation("float8_e5m2"), dst, 0, 64, 2), T.tvm_access_ptr(T.type_annotation("float8_e5m2"), ub.data, 0, 64, 1), 0, 1, 64, 4, 64, 64)

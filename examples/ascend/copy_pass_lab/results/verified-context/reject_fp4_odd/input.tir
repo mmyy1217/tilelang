@@ -1,0 +1,17 @@
+# from tvm.script import tirx as T
+
+@T.prim_func
+def main(src_handle: T.handle, dst_handle: T.handle):
+    src = T.match_buffer(src_handle, (64,), "float4_e2m1fn", strides=(1,))
+    dst = T.match_buffer(dst_handle, (64,), "float4_e2m1fn", strides=(1,))
+    # with T.sblock("root"):
+    for bx in T.thread_binding(1, thread="blockIdx.x"):
+        tx: T.int32 = T.launch_thread_idx(0)
+        ty: T.int32 = T.launch_thread_idx(1)
+        tz: T.int32 = T.launch_thread_idx(2)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "float4_e2m1fn", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 3), T.region(ub[0], 2, 3))
+            T.ascend_copy(T.region(ub[0], 1, 3), T.region(dst[0], 2, 3))

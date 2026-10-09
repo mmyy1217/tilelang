@@ -1,0 +1,20 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(src: T.handle("float32", "global")):
+        T.func_attr({"calling_conv": 2, "dyn_shared_memory_buf": 8192, "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x", "tirx.use_dyn_shared_memory"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [0]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        ub = T.alloc_buffer((2048,), scope="shared.dyn")
+        ub_1 = T.decl_buffer((2048,), data=ub.data, scope="shared.dyn")
+        l1 = T.alloc_buffer((2048,), scope="shared.l1")
+        l1_1 = T.decl_buffer((2048,), data=l1.data, scope="shared.l1")
+        with T.sblock("VECTOR", no_realize=True):
+            T.reads()
+            T.writes()
+            T.ascend_copy_gm_to_ubuf(T.tvm_access_ptr(T.type_annotation("float32"), ub.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("float32"), src, 0, 2048, 1), 0, 1, 8192, 0, 0, 0, 0, 8192, 8192)
+            T.ascend_set_flag("MTE2_MTE3", 0)
+            T.ascend_wait_flag("MTE2_MTE3", 0)
+            T.ascend_copy_ubuf_to_cbuf(T.tvm_access_ptr(T.type_annotation("float32"), l1.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("float32"), ub.data, 0, 2048, 1), 0, 256, 1, 0, 0)

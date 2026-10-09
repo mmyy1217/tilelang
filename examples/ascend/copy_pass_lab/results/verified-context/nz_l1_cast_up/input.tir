@@ -1,0 +1,195 @@
+metadata = tvm.ir.load_json("""{
+  \"root_index\": 22,
+  \"nodes\": [
+    {
+      \"type\": \"ffi.String\",
+      \"data\": \"tl.AscendFractalLayout\"
+    },
+    {
+      \"type\": \"None\"
+    },
+    {
+      \"type\": \"ir.IntImm\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"value\": 32
+      }
+    },
+    {
+      \"type\": \"ir.IntImm\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"value\": 128
+      }
+    },
+    {
+      \"type\": \"ffi.Array\",
+      \"data\": [
+        2,
+        3
+      ]
+    },
+    {
+      \"type\": \"ffi.String\",
+      \"data\": \"_j\"
+    },
+    {
+      \"type\": \"ir.PrimType\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\"
+      }
+    },
+    {
+      \"type\": \"tirx.Var\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"name\": 5,
+        \"type_annotation\": 6
+      }
+    },
+    {
+      \"type\": \"ir.IntImm\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"value\": 8
+      }
+    },
+    {
+      \"type\": \"tirx.FloorDiv\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"a\": 7,
+        \"b\": 8
+      }
+    },
+    {
+      \"type\": \"ffi.String\",
+      \"data\": \"_i\"
+    },
+    {
+      \"type\": \"ir.PrimType\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\"
+      }
+    },
+    {
+      \"type\": \"tirx.Var\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"name\": 10,
+        \"type_annotation\": 11
+      }
+    },
+    {
+      \"type\": \"ir.IntImm\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"value\": 16
+      }
+    },
+    {
+      \"type\": \"tirx.FloorDiv\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"a\": 12,
+        \"b\": 13
+      }
+    },
+    {
+      \"type\": \"ir.IntImm\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"value\": 16
+      }
+    },
+    {
+      \"type\": \"tirx.FloorMod\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"a\": 12,
+        \"b\": 15
+      }
+    },
+    {
+      \"type\": \"ir.IntImm\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"value\": 8
+      }
+    },
+    {
+      \"type\": \"tirx.FloorMod\",
+      \"data\": {
+        \"span\": 1,
+        \"dtype\": \"int32\",
+        \"a\": 7,
+        \"b\": 17
+      }
+    },
+    {
+      \"type\": \"ffi.Array\",
+      \"data\": [
+        9,
+        14,
+        16,
+        18
+      ]
+    },
+    {
+      \"type\": \"tl.AscendFractalLayout\",
+      \"data\": {
+        \"input_size\": 4,
+        \"forward_index\": 19,
+        \"kind\": 0
+      }
+    },
+    {
+      \"type\": \"ffi.Array\",
+      \"data\": [
+        20
+      ]
+    },
+    {
+      \"type\": \"ffi.Map\",
+      \"data\": [
+        0,
+        21
+      ]
+    }
+  ],
+  \"metadata\": {
+    \"tvm_version\": \"0.25.dev0\"
+  }
+}""")
+# from tvm.script import tirx as T
+
+@T.prim_func
+def main(src_handle: T.handle):
+    src = T.match_buffer(src_handle, (32, 128), "bfloat16", strides=(128, 1))
+    # with T.sblock("root"):
+    for bx in T.thread_binding(1, thread="blockIdx.x"):
+        tx: T.int32 = T.launch_thread_idx(0)
+        ty: T.int32 = T.launch_thread_idx(1)
+        tz: T.int32 = T.launch_thread_idx(2)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            l1 = T.handle("float32", "shared.l1")
+            T.sblock_attr({"layout_map": {l1: metadata["tl.AscendFractalLayout"][0]}})
+            ub = T.sblock_alloc_buffer((32, 128), "bfloat16", scope="shared.dyn")
+            l1_1 = T.sblock_alloc_buffer((32, 128), data=l1, scope="shared.l1")
+            T.ascend_copy(T.region(src[0, 0], 1, 32, 128), T.region(ub[0, 0], 2, 32, 128))
+            T.ascend_copy(T.region(ub[0, 0], 1, 32, 128), T.region(l1_1[0, 0], 2, 32, 128))

@@ -1,0 +1,20 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(src: T.handle("bfloat16", "global")):
+        T.func_attr({"calling_conv": 2, "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [0]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        l1 = T.alloc_buffer((4096,), "bfloat16", scope="shared.l1")
+        l1_1 = T.decl_buffer((4096,), "bfloat16", data=l1.data, scope="shared.l1")
+        l0 = T.alloc_buffer((1024,), "bfloat16", scope="shared.l0a")
+        l0_1 = T.decl_buffer((1024,), "bfloat16", data=l0.data, scope="shared.l0a")
+        with T.sblock("CUBE", no_realize=True):
+            T.reads()
+            T.writes()
+            T.ascend_copy_gm_to_cbuf(T.tvm_access_ptr(T.type_annotation("bfloat16"), l1.data, 0, 4096, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), src, 0, 4096, 1), 0, 128, 0, 64, 64, 0, 0, 0, 64, "")
+            T.ascend_set_flag("MTE2_MTE1", 0)
+            T.ascend_wait_flag("MTE2_MTE1", 0)
+            T.ascend_load_cbuf_to_ca(T.tvm_access_ptr(T.type_annotation("bfloat16"), l0.data, 0, 1024, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), l1.data, 0, 1024, 1), 0, 0, 2, 2, 4, 2, 1)

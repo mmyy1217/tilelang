@@ -1,0 +1,22 @@
+
+[COMPILATION ERROR]
+Traceback (most recent call last):
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/examples/ascend/copy_pass_lab/dump_passes.py", line 156, in run_case
+    function = factory()
+               ^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/examples/ascend/copy_pass_lab/kernels_extended.py", line 112, in fixpipe_output
+    @T.prim_func
+     ^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/language/eager/builder.py", line 1804, in prim_func
+    return impl(func) if func is not None else impl
+           ^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/language/eager/builder.py", line 1802, in impl
+    raise e
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/language/eager/builder.py", line 1795, in impl
+    ir_gen.gen(builder)(**annot)
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/examples/ascend/copy_pass_lab/kernels_extended.py", line 126, in main
+    T.dual_copy(acc, ub)
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/language/copy_op.py", line 147, in dual_copy
+    raise ValueError(
+ValueError: dual_copy: src dtype (float32) != dst dtype (bfloat16). Type conversion during cc->ub dual-destination copy is NOT supported on dav-950. Use a separate copy or cast inside a VF block instead.
+

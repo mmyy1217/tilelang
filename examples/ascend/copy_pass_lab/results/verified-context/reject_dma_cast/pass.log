@@ -1,0 +1,932 @@
+[INITIAL IR]
+# from tvm.script import tirx as T
+
+@T.prim_func
+def main(src_handle: T.handle):
+    src = T.match_buffer(src_handle, (64,), strides=(1,))
+    # with T.sblock("root"):
+    for bx in T.thread_binding(1, thread="blockIdx.x"):
+        tx: T.int32 = T.launch_thread_idx(0)
+        ty: T.int32 = T.launch_thread_idx(1)
+        tz: T.int32 = T.launch_thread_idx(2)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0000] pass_fn depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0000] pass_fn depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0001] pass_fn depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0001] pass_fn depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0002] pass_fn depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0002] pass_fn depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0003] tirx.BindTarget depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0003] tirx.BindTarget depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0004] tl.MaterializeKernelLaunch depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        for bx in T.thread_binding(1, thread="blockIdx.x"):
+            tx: T.int32 = T.launch_thread_idx(0)
+            ty: T.int32 = T.launch_thread_idx(1)
+            tz: T.int32 = T.launch_thread_idx(2)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0004] tl.MaterializeKernelLaunch depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0005] tl.AddWrapperForSingleBufStore depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0005] tl.AddWrapperForSingleBufStore depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0006] tl.LegalizeNegativeIndex depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0006] tl.LegalizeNegativeIndex depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0007] tl.InjectAssumes depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0007] tl.InjectAssumes depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0008] tl.RewriteDualCopy depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0008] tl.RewriteDualCopy depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0009] tl.LegalizeSimdMerging depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0009] tl.LegalizeSimdMerging depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0010] tl.Simplify depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0010] tl.Simplify depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0011] tl.CanonicalizeLegacyReducer depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0011] tl.CanonicalizeLegacyReducer depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0012] tl.VerifyReducerEpoch depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0012] tl.VerifyReducerEpoch depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0013] tl.VerifyBufferInit depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0013] tl.VerifyBufferInit depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0014] tl.UnrollLoopSkipVF depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0014] tl.UnrollLoopSkipVF depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0015] tl.Simplify depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0015] tl.Simplify depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0016] tl.AscendLayoutInference depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        # with T.sblock("root"):
+        bx = T.launch_thread("blockIdx.x", 1)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+            T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0016] tl.AscendLayoutInference depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0017] tl.ReducerPlanAndMaterialize depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0017] tl.ReducerPlanAndMaterialize depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0018] tl.NormalizeAscendFractalStorage depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0018] tl.NormalizeAscendFractalStorage depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0019] tl.InsertNd2Nz depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR AFTER #0019] tl.InsertNd2Nz depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR BEFORE #0020] pass_fn depth=0
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main(src_handle: T.handle):
+        T.func_attr({"target": T.target({"host": {"keys": ["cpu"], "kind": "c", "tag": ""}, "keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""})})
+        src = T.match_buffer(src_handle, (64,), strides=(1,))
+        with T.sblock("root"):
+            T.reads()
+            T.writes()
+            T.sblock_attr({"layout_map": {}})
+            bx = T.launch_thread("blockIdx.x", 1)
+            with T.sblock("tilelang_root"):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"layout_map": {}})
+                ub = T.sblock_alloc_buffer((64,), "bfloat16", scope="shared.dyn")
+                T.ascend_copy(T.region(src[0], 1, 64), T.region(ub[0], 2, 64))
+
+[IR INCOMPLETE #0020] pass_fn
+
+[COMPILATION ERROR]
+Traceback (most recent call last):
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/examples/ascend/copy_pass_lab/dump_passes.py", line 162, in run_case
+    artifact = tilelang.lower(
+               ^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/engine/lower.py", line 238, in lower
+    return lower_with_context(
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/engine/lower.py", line 165, in lower_with_context
+    return _lower_with_context_impl(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/engine/lower.py", line 184, in _lower_with_context_impl
+    host_mod, device_mod, params, target, target_host = lower_to_host_device_ir(
+                                                        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/engine/lower.py", line 136, in lower_to_host_device_ir
+    mod = context.lower(mod)
+          ^^^^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/backend/module.py", line 214, in lower
+    return self.module.lower(mod, self.target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/backend/module.py", line 115, in lower
+    return self.get_pipeline(target).lower(mod, target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/backend/pass_pipeline/pipeline.py", line 31, in lower
+    return self._lower(mod, target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/pipeline.py", line 95, in AscendPassPipelineBody
+    tilelang.ascend.analysis.VFChecker()(mod)
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/ir/transform.py", line 171, in __call__
+    return _ffi_transform_api.RunPass(self, mod)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+  File "<unknown>", line 0, in tvm::transform::Pass::operator()(tvm::IRModule) const
+  File "<unknown>", line 0, in tvm::transform::Pass::operator()(tvm::IRModule, tvm::transform::PassContext const&) const
+  File "<unknown>", line 0, in tvm::tirx::transform::PrimFuncPassNode::operator()(tvm::IRModule, tvm::transform::PassContext const&) const
+  File "<unknown>", line 0, in std::_Function_handler<tvm::tirx::PrimFunc (tvm::tirx::PrimFunc, tvm::IRModule, tvm::transform::PassContext), tvm::tirx::transform::__TVMFFIStaticInitFunc17()::{lambda(tvm::ffi::TypedFunction<tvm::tirx::PrimFunc (tvm::ffi::RValueRef<tvm::tirx::PrimFunc, void>, tvm::IRModule, tvm::transform::PassContext)>, tvm::transform::PassInfo)#1}::operator()(tvm::ffi::TypedFunction<tvm::tirx::PrimFunc (tvm::ffi::RValueRef<tvm::tirx::PrimFunc, void>, tvm::IRModule, tvm::transform::PassContext)>, tvm::transform::PassInfo) const::{lambda(tvm::tirx::PrimFunc, tvm::IRModule, tvm::transform::PassContext)#1}>::_M_invoke(std::_Any_data const&, tvm::tirx::PrimFunc&&, tvm::IRModule&&, tvm::transform::PassContext&&)
+  File "<unknown>", line 0, in tvm::tirx::transform::__TVMFFIStaticInitFunc17()::{lambda(tvm::ffi::TypedFunction<tvm::tirx::PrimFunc (tvm::ffi::RValueRef<tvm::tirx::PrimFunc, void>, tvm::IRModule, tvm::transform::PassContext)>, tvm::transform::PassInfo)#1}::operator()(tvm::ffi::TypedFunction<tvm::tirx::PrimFunc (tvm::ffi::RValueRef<tvm::tirx::PrimFunc, void>, tvm::IRModule, tvm::transform::PassContext)>, tvm::transform::PassInfo) const::{lambda(tvm::tirx::PrimFunc, tvm::IRModule, tvm::transform::PassContext)#1}::operator()(tvm::tirx::PrimFunc, tvm::IRModule, tvm::transform::PassContext) const
+  File "<unknown>", line 0, in TVMFFIPyCallback(void*, TVMFFIAny const*, int, TVMFFIAny*)
+  File "<unknown>", line 0, in TVMFFIPyCallManager::ForwardPyErrorToFFI()
+  File "<unknown>", line 0, in TVMFFICyErrorSetRaisedFromPyError(_object*)
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/analysis/vf_checker.py", line 183, in pass_fn
+    _VFCheckVisitor().visit_stmt(func.body)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/runtime/support.py", line 192, in method
+    return result(*args, **kwargs)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/tirx/functor.py", line 338, in visit_stmt
+    _ffi_api.PyStmtExprVisitorVisitStmt(self._outer(), stmt)  # type: ignore
+    
+  File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::VisitStmt(tvm::tirx::Stmt const&)
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*) const
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::InitVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)#13}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)
+  File "<unknown>", line 0, in non-virtual thunk to tvm::tirx::PyStmtExprVisitorNode::VisitStmt_(tvm::tirx::SBlockRealizeNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtVisitor::VisitStmt_(tvm::tirx::SBlockRealizeNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::VisitStmt(tvm::tirx::Stmt const&)
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*) const
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::InitVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)#12}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)
+  File "<unknown>", line 0, in non-virtual thunk to tvm::tirx::PyStmtExprVisitorNode::VisitStmt_(tvm::tirx::SBlockNode const*)
+  File "<unknown>", line 0, in TVMFFIPyCallback(void*, TVMFFIAny const*, int, TVMFFIAny*)
+  File "<unknown>", line 0, in TVMFFIPyCallManager::ForwardPyErrorToFFI()
+  File "<unknown>", line 0, in TVMFFICyErrorSetRaisedFromPyError(_object*)
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/runtime/support.py", line 119, in method
+    return getattr(inst, name)(*args, **kwargs)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/analysis/vf_checker.py", line 48, in visit_sblock_
+    super().visit_sblock_(op)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/tirx/functor.py", line 494, in visit_sblock_
+    _ffi_api.PyStmtExprVisitorDefaultVisitStmt(self._outer(), op)  # type: ignore
+    
+  File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*) const
+  File "<unknown>", line 0, in tvm::tirx::PyStmtExprVisitorNode::InitStmtVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*)#12}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*)
+  File "<unknown>", line 0, in tvm::tirx::StmtVisitor::VisitStmt_(tvm::tirx::SBlockNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::VisitStmt(tvm::tirx::Stmt const&)
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*) const
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::InitVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)#2}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)
+  File "<unknown>", line 0, in non-virtual thunk to tvm::tirx::PyStmtExprVisitorNode::VisitStmt_(tvm::tirx::AttrStmtNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtVisitor::VisitStmt_(tvm::tirx::AttrStmtNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::VisitStmt(tvm::tirx::Stmt const&)
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*) const
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::InitVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)#13}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)
+  File "<unknown>", line 0, in non-virtual thunk to tvm::tirx::PyStmtExprVisitorNode::VisitStmt_(tvm::tirx::SBlockRealizeNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtVisitor::VisitStmt_(tvm::tirx::SBlockRealizeNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::VisitStmt(tvm::tirx::Stmt const&)
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*) const
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::InitVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)#12}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)
+  File "<unknown>", line 0, in non-virtual thunk to tvm::tirx::PyStmtExprVisitorNode::VisitStmt_(tvm::tirx::SBlockNode const*)
+  File "<unknown>", line 0, in TVMFFIPyCallback(void*, TVMFFIAny const*, int, TVMFFIAny*)
+  File "<unknown>", line 0, in TVMFFIPyCallManager::ForwardPyErrorToFFI()
+  File "<unknown>", line 0, in TVMFFICyErrorSetRaisedFromPyError(_object*)
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/runtime/support.py", line 119, in method
+    return getattr(inst, name)(*args, **kwargs)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/analysis/vf_checker.py", line 48, in visit_sblock_
+    super().visit_sblock_(op)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/tirx/functor.py", line 494, in visit_sblock_
+    _ffi_api.PyStmtExprVisitorDefaultVisitStmt(self._outer(), op)  # type: ignore
+    
+  File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*) const
+  File "<unknown>", line 0, in tvm::tirx::PyStmtExprVisitorNode::InitStmtVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*)#12}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::PyStmtExprVisitorNode*)
+  File "<unknown>", line 0, in tvm::tirx::StmtVisitor::VisitStmt_(tvm::tirx::SBlockNode const*)
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::VisitStmt(tvm::tirx::Stmt const&)
+  File "<unknown>", line 0, in tvm::NodeFunctor<void (tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)>::operator()(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*) const
+  File "<unknown>", line 0, in tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>::InitVTable()::{lambda(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)#10}::_FUN(tvm::ffi::ObjectRef const&, tvm::tirx::StmtFunctor<void (tvm::tirx::Stmt const&)>*)
+  File "<unknown>", line 0, in non-virtual thunk to tvm::tirx::PyStmtExprVisitorNode::VisitStmt_(tvm::tirx::EvaluateNode const*)
+  File "<unknown>", line 0, in TVMFFIPyCallback(void*, TVMFFIAny const*, int, TVMFFIAny*)
+  File "<unknown>", line 0, in TVMFFIPyCallManager::ForwardPyErrorToFFI()
+  File "<unknown>", line 0, in TVMFFICyErrorSetRaisedFromPyError(_object*)
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/3rdparty/tvm/python/tvm/runtime/support.py", line 119, in method
+    return getattr(inst, name)(*args, **kwargs)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/analysis/vf_checker.py", line 123, in visit_evaluate_
+    self._check_copy(call)
+    
+  File "/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/analysis/vf_checker.py", line 101, in _check_copy
+    raise ValueError(
+    
+ValueError: [TileLang Semantic Check] T.copy() from dtype 'float32' to dtype 'bfloat16' outside a VF block is not allowed. DMA copies cannot perform type casting — perform the cast inside a VF block (T.SimdVF() or T.SimtVF()) instead.
+

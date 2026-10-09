@@ -1,0 +1,54 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(a: T.handle("float8_e4m3fn", "global"), b: T.handle("float8_e4m3fn", "global"), dst: T.handle("float32", "global"), sa: T.handle("uint16", "global"), sb: T.handle("uint16", "global")):
+        T.func_attr({"calling_conv": 2, "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [0, 1, 3, 4]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        buf_dyn_l1 = T.alloc_buffer((T.int64(6720),), "uint8", scope="shared.l1.dyn")
+        a1 = T.decl_buffer((4096,), "float8_e4m3fn", data=buf_dyn_l1.data, scope="shared.l1.dyn")
+        b1 = T.decl_buffer((2048,), "float8_e4m3fn", data=buf_dyn_l1.data, scope="shared.l1.dyn")
+        sa1 = T.decl_buffer((32,), "uint16", data=buf_dyn_l1.data, scope="shared.l1.dyn")
+        sb1 = T.decl_buffer((32,), "uint16", data=buf_dyn_l1.data, scope="shared.l1.dyn")
+        a0 = T.alloc_buffer((2048,), "float8_e4m3fn", scope="shared.l0a")
+        a0_1 = T.decl_buffer((2048,), "float8_e4m3fn", data=a0.data, scope="shared.l0a")
+        b0 = T.alloc_buffer((2048,), "float8_e4m3fn", scope="shared.l0b")
+        b0_1 = T.decl_buffer((2048,), "float8_e4m3fn", data=b0.data, scope="shared.l0b")
+        acc = T.alloc_buffer((512,), scope="shared.l0c")
+        acc_1 = T.decl_buffer((512,), data=acc.data, scope="shared.l0c")
+        with T.sblock("CUBE", no_realize=True):
+            T.reads()
+            T.writes()
+            T.ascend_set_flag("FIX_M", 0)
+            T.ascend_set_flag("FIX_M", 1)
+            T.ascend_set_flag("M_MTE1", 0)
+            T.ascend_copy_gm_to_cbuf(T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), buf_dyn_l1.data, 0, 4096, 2), T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), a, 0, 4096, 1), 0, 256, 0, 16, 256, 0, 0, 0, 16, "")
+            T.ascend_copy_gm_to_cbuf(T.tvm_access_ptr(T.type_annotation("uint16"), buf_dyn_l1.data, 3328, 32, 2), T.tvm_access_ptr(T.type_annotation("uint16"), sb, 0, 32, 1), 0, 32, 0, 2, 16, 0, 0, 0, 2, "")
+            T.ascend_copy_gm_to_cbuf(T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), buf_dyn_l1.data, 4096, 2048, 2), T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), b, 0, 2048, 1), 0, 128, 0, 16, 128, 0, 0, 0, 16, "")
+            T.ascend_set_flag("MTE2_MTE1", 1)
+            T.ascend_copy_gm_to_cbuf(T.tvm_access_ptr(T.type_annotation("uint16"), buf_dyn_l1.data, 3072, 32, 2), T.tvm_access_ptr(T.type_annotation("uint16"), sa, 0, 32, 1), 0, 32, 0, 2, 16, 0, 0, 0, 2, "")
+            T.ascend_set_flag("MTE2_MTE1", 0)
+            T.ascend_wait_flag("MTE2_MTE1", 1)
+            T.ascend_load_cbuf_to_cb(T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), b0.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), buf_dyn_l1.data, 4096, 2048, 1), 0, 0, 1, 4, 1, 1, 0)
+            T.ascend_load_cb_sf(T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), b0.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("uint16"), buf_dyn_l1.data, 3328, 32, 1), 0, 0, 1, 2, 2, 2)
+            for i in range(2):
+                if i == 0:
+                    T.ascend_wait_flag("MTE2_MTE1", 0)
+                T.ascend_wait_flag("M_MTE1", 0)
+                T.ascend_load_ca_sf(T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), a0.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("uint16"), buf_dyn_l1.data, 3072, 32, 1), 0, 0, 1, 2, 2, 2)
+                T.ascend_load_cbuf_to_ca(T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), a0.data, 0, 2048, 2), T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), buf_dyn_l1.data, 0, 2048, 1), 0, i * 4, 1, 4, 1, 1, 0)
+                T.ascend_set_flag("MTE1_M", 0)
+                T.ascend_wait_flag("FIX_M", i)
+                T.ascend_wait_flag("MTE1_M", 0)
+                with T.attr(0, "lexical_alloc_scope", 1):
+                    T.ascend_mad_mx(T.tvm_access_ptr(T.type_annotation("float32"), acc.data, i * 256, 256, 2), T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), a0.data, 0, 2048, 1), T.tvm_access_ptr(T.type_annotation("float8_e4m3fn"), b0.data, 0, 2048, 1), 16, 128, 16, 0, 1, 0, T.bool(True))
+                T.ascend_set_flag("M_FIX", i)
+                T.ascend_set_flag("M_MTE1", 0)
+                T.ascend_wait_flag("M_FIX", i)
+                T.ascend_copy_matrix_cc_to_gm(T.tvm_access_ptr(T.type_annotation("float32"), dst, i * 256, 256, 2), T.tvm_access_ptr(T.type_annotation("float32"), acc.data, i * 256, 256, 1), 0, 16, 16, 16, 16, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                T.ascend_set_flag("FIX_M", i)
+            T.ascend_wait_flag("FIX_M", 0)
+            T.ascend_wait_flag("FIX_M", 1)
+            T.ascend_wait_flag("M_MTE1", 0)

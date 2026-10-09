@@ -1,0 +1,31 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(dst: T.handle("float16", "global"), src: T.handle("float32", "global")):
+        T.func_attr({"calling_conv": 2, "dyn_shared_memory_buf": T.int64(1536), "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x", "tirx.use_dyn_shared_memory"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [1]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        buf_dyn_shmem = T.alloc_buffer((T.int64(1536),), "uint8", scope="shared.dyn")
+        a = T.decl_buffer((256,), data=buf_dyn_shmem.data, scope="shared.dyn")
+        b = T.decl_buffer((256,), "float16", data=buf_dyn_shmem.data, scope="shared.dyn")
+        with T.sblock("VECTOR", no_realize=True):
+            T.reads()
+            T.writes()
+            T.ascend_copy_gm_to_ubuf(T.tvm_access_ptr(T.type_annotation("float32"), buf_dyn_shmem.data, 0, 256, 2), T.tvm_access_ptr(T.type_annotation("float32"), src, 0, 256, 1), 0, 1, 1024, 0, 0, 0, 0, 1024, 1024)
+            T.ascend_set_flag("MTE2_V", 0)
+            T.ascend_wait_flag("MTE2_V", 0)
+            with T.sblock("SIMD_VF", no_realize=True):
+                T.reads()
+                T.writes()
+                T.sblock_attr({"tl.vf_source_index": T.int64(0)})
+                T.attr("simdvf", "tl.simdvf_scope", 1)
+                mask: T.boolx256 = T.tl.simd.pset(16, "PAT_ALL")
+                for vchunk in range(4):
+                    vreg_0: T.float32x64 = T.tl.simd.vld(T.tvm_access_ptr(T.type_annotation("float32"), buf_dyn_shmem.data, vchunk * 64, 1, 1), "NORM")
+                    vreg_1: T.float16x128 = T.tl.simd.vcvt(vreg_0, mask, "ROUND_R", "RS_ENABLE", "PART_EVEN", "MODE_ZEROING")
+                    T.tl.simd.vsts(T.tvm_access_ptr(T.type_annotation("float16"), buf_dyn_shmem.data, vchunk * 64 + 512, 1, 2), vreg_1, mask, "NORM_B32")
+            T.ascend_set_flag("V_MTE3", 0)
+            T.ascend_wait_flag("V_MTE3", 0)
+            T.ascend_copy_ubuf_to_gm(T.tvm_access_ptr(T.type_annotation("float16"), dst, 0, 256, 2), T.tvm_access_ptr(T.type_annotation("float16"), buf_dyn_shmem.data, 512, 256, 1), 0, 1, 512, 4, 512, 512)

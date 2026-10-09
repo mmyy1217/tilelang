@@ -1,0 +1,482 @@
+{
+  "total_cases": 70,
+  "lowered_cases": 62,
+  "expected_rejections": 8,
+  "total_pass_callbacks": 5611,
+  "cases": {
+    "atomic_fixpipe": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 25807,
+      "after_line": 26296
+    },
+    "atomic_ub_add": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2112,
+      "after_line": 2144
+    },
+    "atomic_ub_max": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2112,
+      "after_line": 2144
+    },
+    "atomic_ub_min": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2112,
+      "after_line": 2144
+    },
+    "cache_policy": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "compact_nz": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 11189,
+      "after_line": 11478
+    },
+    "compact_nz_cast_down": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 11189,
+      "after_line": 11478
+    },
+    "compact_nz_cast_up": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 11189,
+      "after_line": 11478
+    },
+    "compact_nz_simd": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 11384,
+      "after_line": 11678
+    },
+    "dma": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "dual_dma": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 360,
+      "after_line": 380
+    },
+    "dual_gemm": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 3505,
+      "after_line": 3710
+    },
+    "dual_l0c_n": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 3505,
+      "after_line": 3710
+    },
+    "dual_nz_l1": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 3386,
+      "after_line": 3584
+    },
+    "dual_prepacked_nz_l1": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 4899,
+      "after_line": 5186
+    },
+    "dual_raw_ub_l1": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.RewriteDualCopy",
+      "before_line": 360,
+      "after_line": 380
+    },
+    "dynamic": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2075,
+      "after_line": 2108
+    },
+    "dynamic_shape": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2024,
+      "after_line": 2056
+    },
+    "dynamic_ub": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2167,
+      "after_line": 2202
+    },
+    "empty_tail": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendInsertOOBPadding",
+      "before_line": 916,
+      "after_line": 940
+    },
+    "explicit_pad": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1999,
+      "after_line": 2030
+    },
+    "fp4": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.RewriteFp4ToFp4x2",
+      "before_line": 2801,
+      "after_line": 2824
+    },
+    "fp8_e4m3": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "fp8_e5m2": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "gemm": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 35746,
+      "after_line": 36466
+    },
+    "gm_l1_transpose": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 15313,
+      "after_line": 15516
+    },
+    "l0c_gm_bf16": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 25581,
+      "after_line": 26068
+    },
+    "l0c_gm_fp16": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 25581,
+      "after_line": 26068
+    },
+    "l0c_ub": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 25806,
+      "after_line": 26302
+    },
+    "l0c_ub_bf16": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 25806,
+      "after_line": 26302
+    },
+    "l1_l0_layout_transpose": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 24015,
+      "after_line": 24332
+    },
+    "l1_l0_subtile": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 24015,
+      "after_line": 24332
+    },
+    "l1_l0a_transpose": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 24015,
+      "after_line": 24332
+    },
+    "l1_l0b_transpose": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 24015,
+      "after_line": 24332
+    },
+    "manual_post_copy": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 22516,
+      "after_line": 22814
+    },
+    "mx_fp4": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 34013,
+      "after_line": 34772
+    },
+    "mx_sf_byte": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 36249,
+      "after_line": 37060
+    },
+    "mx_sf_lifetime": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 34042,
+      "after_line": 34802
+    },
+    "mx_sf_tile": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 34013,
+      "after_line": 34772
+    },
+    "nz_l1_cast_down": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 7757,
+      "after_line": 7958
+    },
+    "nz_l1_cast_up": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 7757,
+      "after_line": 7958
+    },
+    "nz_l1_single_c0": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 6743,
+      "after_line": 6918
+    },
+    "nz_scatter": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 7835,
+      "after_line": 8038
+    },
+    "offset_strided": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "padding": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1999,
+      "after_line": 2030
+    },
+    "pipeline": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.MaterializeMultiBuffer",
+      "before_line": 1707,
+      "after_line": 1762
+    },
+    "pipeline_1": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2155,
+      "after_line": 2190
+    },
+    "pipeline_3": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.MaterializeMultiBuffer",
+      "before_line": 1713,
+      "after_line": 1774
+    },
+    "pipeline_4": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.MaterializeMultiBuffer",
+      "before_line": 1719,
+      "after_line": 1786
+    },
+    "prepacked_nz_l1": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.InsertNd2Nz",
+      "before_line": 11228,
+      "after_line": 11518
+    },
+    "raw_ub_l1": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1890,
+      "after_line": 1920
+    },
+    "reject_dma_3d": {
+      "outcome": "expected_rejection",
+      "pass_count": 39,
+      "diagnostic": ">2D strided copy not yet supported"
+    },
+    "reject_dma_cast": {
+      "outcome": "expected_rejection",
+      "pass_count": 21,
+      "diagnostic": "DMA copies cannot perform type casting"
+    },
+    "reject_dual_cast": {
+      "outcome": "expected_rejection",
+      "pass_count": 0,
+      "diagnostic": "Type conversion during cc->ub dual-destination copy is NOT supported"
+    },
+    "reject_fp4_odd": {
+      "outcome": "expected_rejection",
+      "pass_count": 39,
+      "diagnostic": "packed sub-byte row must be byte-aligned"
+    },
+    "reject_raw_payload": {
+      "outcome": "expected_rejection",
+      "pass_count": 39,
+      "diagnostic": "multiple of 32 bytes"
+    },
+    "reject_raw_stride": {
+      "outcome": "expected_rejection",
+      "pass_count": 39,
+      "diagnostic": "contiguous source region"
+    },
+    "reject_simd_cast_up": {
+      "outcome": "expected_rejection",
+      "pass_count": 38,
+      "diagnostic": "cast copy only supports f32->bf16 or f32->half"
+    },
+    "reject_simd_short": {
+      "outcome": "expected_rejection",
+      "pass_count": 38,
+      "diagnostic": "total elements divisible by VReg"
+    },
+    "scalar_global": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1650,
+      "after_line": 1676
+    },
+    "simd": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendSimdVFLowerParallel",
+      "before_line": 2429,
+      "after_line": 2468
+    },
+    "simd_cast_down": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendSimdVFLowerParallel",
+      "before_line": 2429,
+      "after_line": 2468
+    },
+    "simd_cast_fp16": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendSimdVFLowerParallel",
+      "before_line": 2429,
+      "after_line": 2468
+    },
+    "simt": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2738,
+      "after_line": 2780
+    },
+    "simt_cast": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2738,
+      "after_line": 2780
+    },
+    "simt_global": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2502,
+      "after_line": 2540
+    },
+    "simt_scalar": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 2738,
+      "after_line": 2780
+    },
+    "strided": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 1886,
+      "after_line": 1916
+    },
+    "tail": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 86,
+      "changed_pass": "tl.AscendInsertOOBPadding",
+      "before_line": 916,
+      "after_line": 940
+    },
+    "unit_flag": {
+      "outcome": "lowered_to_cce_source",
+      "pass_count": 88,
+      "changed_pass": "tl.AscendLowerTileOp",
+      "before_line": 25539,
+      "after_line": 26024
+    }
+  }
+}

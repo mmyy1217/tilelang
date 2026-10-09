@@ -1,0 +1,22 @@
+# from tvm.script import ir as I
+# from tvm.script import tirx as T
+
+@I.ir_module
+class Module:
+    @T.prim_func
+    def main_kernel(dst: T.handle("bfloat16", "global"), src: T.handle("bfloat16", "global")):
+        T.func_attr({"calling_conv": 2, "dyn_shared_memory_buf": T.int64(16640), "target": T.target({"keys": ["ascend"], "kind": "ascend", "launch_grid_only": True, "max_vector_bits": 64, "supports_kernel_status_return": False, "supports_vector_predicate": True, "tag": ""}), "thread_extent": {"blockIdx.x": 1}, "tirx.is_global_func": T.bool(True), "tirx.kernel_launch_params": ["blockIdx.x", "tirx.use_dyn_shared_memory"], "tirx.noalias": True, "tl.non_restrict_params": [], "tl.readonly_param_indices": [1]})
+        bx = T.launch_thread("blockIdx.x", 1)
+        buf_dyn_shmem = T.alloc_buffer((T.int64(16640),), "uint8", scope="shared.dyn")
+        ub = T.decl_buffer((4096,), "bfloat16", data=buf_dyn_shmem.data, scope="shared.dyn")
+        nz = T.decl_buffer((4224,), "bfloat16", data=buf_dyn_shmem.data, scope="shared.dyn")
+        with T.sblock("VECTOR", no_realize=True):
+            T.reads()
+            T.writes()
+            T.ascend_copy_gm_to_ubuf(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_shmem.data, 4224, 4096, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), src, 0, 4096, 1), 0, 1, 8192, 0, 0, 0, 0, 8192, 8192)
+            T.ascend_set_flag("MTE2_V", 0)
+            T.ascend_wait_flag("MTE2_V", 0)
+            T.ascend_nd2nz_scatter(T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_shmem.data, 4224, 4096, 1), T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_shmem.data, 0, 4224, 2), 32, 128, "bfloat16_t", "bfloat16_t")
+            T.ascend_set_flag("V_MTE3", 0)
+            T.ascend_wait_flag("V_MTE3", 0)
+            T.ascend_copy_ubuf_to_gm(T.tvm_access_ptr(T.type_annotation("bfloat16"), dst, 0, 4224, 2), T.tvm_access_ptr(T.type_annotation("bfloat16"), buf_dyn_shmem.data, 0, 4224, 1), 0, 1, 8448, 4, 8448, 8448)

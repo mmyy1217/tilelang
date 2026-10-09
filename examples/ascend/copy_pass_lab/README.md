@@ -37,6 +37,9 @@ rg -n 'IR AFTER.*(RewriteDualCopy|LayoutInference|InsertNd2Nz|OOBPadding|LowerTi
 
 ## 用例
 
+现有 70 个用例：62 个生成 CCE 源码，8 个验证明确的拒绝边界。新增工厂在 `kernels_extended.py`，全部分类与逐用例笔记见[完整学习索引](results/README.md)。下面保留首批 13 例作为入门路线。
+
+
 | 用例名 | 观察目标 |
 | --- | --- |
 | `dma` | GM→UB→GM 基本 DMA |
@@ -97,6 +100,21 @@ CCACHE_DIR=../work/experiments/ascend-copy-pass-lab/ccache cmake --build build -
 
 ## 本地验证结果（2026-10-09）
 
-13 个内置用例全部降低到 CCE 源码，共记录 1122 次 pass 回调；一般用例 86 次，gemm/dual_gemm 各 88 次。已逐项核对 BEFORE/AFTER 的配对、日志行号及对应 CCE 指令形式。外部 Python kernel 入口通过，刻意失败的 pass 也正确保留输入和失败状态并返回非零退出码。
+首批 13 个内置用例全部降低到 CCE 源码，共记录 1122 次 pass 回调；一般用例 86 次，gemm/dual_gemm 各 88 次。已逐项核对 BEFORE/AFTER 的配对、日志行号及对应 CCE 指令形式。外部 Python kernel 入口通过，刻意失败的 pass 也正确保留输入和失败状态并返回非零退出码。
 
 验证产物在实验目录的 `runs/verified-context/`，简明结论在 `verification.json`。首次试跑的 VF 用例缺少 Target context，已在观察工具入口补齐；没有修改编译器实现。以上是离线 lowering/codegen 验证，不包含 NPU 数值、设备二进制或性能验证。
+
+
+## 扩展验证结果（2026-10-09）
+
+当前 `--all` 运行 70 个用例，共 5611 次 pass 回调。62 个成功 lowering；8 个 `reject_*` 用例保留真实失败 IR/diagnostic，只有匹配预设错误才算观察成功，manifest 仍标记 failed。预期失败如果意外成功，或报出其他错误，命令会返回非零退出码。
+
+每个结果目录包含 `kernel.py` 源模块快照和 `make_kernel()` 复现入口；参数化工厂的选择记录在 manifest。共享工厂源码会包含其他用例定义，阅读时按学习笔记中的函数行号和参数定位。
+
+覆盖表和每个场景的日志入口见 [results/README.md](results/README.md)，核对归档：
+
+```bash
+python examples/ascend/copy_pass_lab/verify_results.py
+```
+
+验证包括回调配对与行号、TSV、源码哈希、实际 codegen 指令形式、应跳过的 scatter/DMA 分支以及预期错误；不进行设备执行。

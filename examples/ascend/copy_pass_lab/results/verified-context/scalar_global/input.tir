@@ -1,0 +1,15 @@
+# from tvm.script import tirx as T
+
+@T.prim_func
+def main(src_handle: T.handle, dst_handle: T.handle):
+    src = T.match_buffer(src_handle, (1,), strides=(1,))
+    dst = T.match_buffer(dst_handle, (1,), strides=(1,))
+    # with T.sblock("root"):
+    for bx in T.thread_binding(1, thread="blockIdx.x"):
+        tx: T.int32 = T.launch_thread_idx(0)
+        ty: T.int32 = T.launch_thread_idx(1)
+        tz: T.int32 = T.launch_thread_idx(2)
+        with T.sblock("tilelang_root"):
+            T.reads()
+            T.writes()
+            dst[0] = src[0]
