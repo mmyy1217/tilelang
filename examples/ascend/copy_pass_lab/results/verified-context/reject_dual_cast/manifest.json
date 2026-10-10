@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "failed",
   "expected_error": "Type conversion during cc->ub dual-destination copy is NOT supported",
-  "kernel_snapshot_sha256": "eb3a59a2b7ad3e10b4228bfb97fdb7321f340de98edf71387e11ba2681da2440",
+  "kernel_snapshot_sha256": "fd8848e61f7ae9be0d74cb6bfcb72d5877d53d6db2534c67453339d18e9277da",
   "factory_parameters": {
     "args": [],
     "kwargs": {
@@ -23,5 +23,6 @@
   "error": "Traceback (most recent call last):\n  File \"/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/examples/ascend/copy_pass_lab/dump_passes.py\", line 156, in run_case\n    function = factory()\n               ^^^^^^^^^\n  File \"/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/examples/ascend/copy_pass_lab/kernels_extended.py\", line 112, in fixpipe_output\n    @T.prim_func\n     ^^^^^^^^^^^\n  File \"/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/language/eager/builder.py\", line 1804, in prim_func\n    return impl(func) if func is not None else impl\n           ^^^^^^^^^^\n  File \"/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/language/eager/builder.py\", line 1802, in impl\n    raise e\n  File \"/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/language/eager/builder.py\", line 1795, in impl\n    ir_gen.gen(builder)(**annot)\n  File \"/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/examples/ascend/copy_pass_lab/kernels_extended.py\", line 126, in main\n    T.dual_copy(acc, ub)\n  File \"/home/zuomin/Projects/Compiler/tilelang-copy-pass-lab/tilelang/ascend/language/copy_op.py\", line 147, in dual_copy\n    raise ValueError(\nValueError: dual_copy: src dtype (float32) != dst dtype (bfloat16). Type conversion during cc->ub dual-destination copy is NOT supported on dav-950. Use a separate copy or cast inside a VF block instead.\n",
   "expected_error_matched": true,
   "passes": [],
-  "pass_count": 0
+  "pass_count": 0,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

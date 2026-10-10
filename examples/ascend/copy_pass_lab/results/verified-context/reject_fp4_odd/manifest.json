@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "failed",
   "expected_error": "packed sub-byte row must be byte-aligned",
-  "kernel_snapshot_sha256": "1c29ec89c39f7287260218ff85cfb9cf5954d355c2fb525d82f778abd14668c6",
+  "kernel_snapshot_sha256": "ee8f4b4465636ee7db34b567f7936c1ba9455505a00c94bbcec07ab3c8419b24",
   "factory_parameters": {
     "args": [],
     "kwargs": {
@@ -565,5 +565,6 @@
       "before_line": 1886
     }
   ],
-  "pass_count": 39
+  "pass_count": 39,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "lowered_to_cce_source",
   "expected_error": null,
-  "kernel_snapshot_sha256": "e04fead6e2814e450010dbc3e7ce08de37d6e8139bcac868c3b09376d52f54f4",
+  "kernel_snapshot_sha256": "4ddac3a5c01146f3e26c32dca4cf0680066b2488616d5f1fb091008d8c6c4d4a",
   "passes": [
     {
       "name": "pass_fn",
@@ -1218,5 +1218,6 @@
       "after_line": 4893
     }
   ],
-  "pass_count": 86
+  "pass_count": 86,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

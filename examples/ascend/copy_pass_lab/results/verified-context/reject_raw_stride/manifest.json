@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "failed",
   "expected_error": "contiguous source region",
-  "kernel_snapshot_sha256": "240ddf05db60b76126e9b3bdccaa0644c20e1a6e52d5cee312e277abff369616",
+  "kernel_snapshot_sha256": "ce8061ad983a832d45ba15e277dfe11a1e417b1e08db4a92e7eb14ab3e265d5c",
   "factory_parameters": {
     "args": [],
     "kwargs": {
@@ -564,5 +564,6 @@
       "before_line": 1890
     }
   ],
-  "pass_count": 39
+  "pass_count": 39,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

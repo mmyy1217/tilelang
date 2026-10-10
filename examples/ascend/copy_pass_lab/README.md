@@ -109,7 +109,7 @@ CCACHE_DIR=../work/experiments/ascend-copy-pass-lab/ccache cmake --build build -
 
 当前 `--all` 运行 70 个用例，共 5611 次 pass 回调。62 个成功 lowering；8 个 `reject_*` 用例保留真实失败 IR/diagnostic，只有匹配预设错误才算观察成功，manifest 仍标记 failed。预期失败如果意外成功，或报出其他错误，命令会返回非零退出码。
 
-每个结果目录包含 `kernel.py` 源模块快照和 `make_kernel()` 复现入口；参数化工厂的选择记录在 manifest。共享工厂源码会包含其他用例定义，阅读时按学习笔记中的函数行号和参数定位。
+每个结果目录的 `kernel.py` 只保留本例需要的导入和 `make_kernel()`，参数已经固定，无关用例和静态分支已去除，可直接从头阅读并独立复现。
 
 覆盖表和每个场景的日志入口见 [results/README.md](results/README.md)，核对归档：
 

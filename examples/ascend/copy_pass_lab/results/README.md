@@ -106,9 +106,9 @@
 
 - 编译器基线 47976f210de3598444003e9b05de8204dfa7ff88，TVM 4211874e9e4b8770fd20ad0d98ab80afd1df5028；没有修改编译器实现。
 - 首批 13 个用例保留原日志与行号；扩展用例来自本地 expanded-final 批次，工具及扩展 kernel 提交 c0fa5050。
-- 扩展批次生成于工具提交之前，manifest 的 tilelang_revision 记录当时 HEAD c790465d；kernel_sha256 / kernel_snapshot_sha256 记录实际源码，不能仅凭该 Git 字段反推当时尚未提交的工具文件。
+- 扩展批次生成于工具提交之前，manifest 的 tilelang_revision 记录当时 HEAD c790465d；kernel_sha256 记录当时源模块，kernel_snapshot_sha256 记录当前独立 kernel 文件，不能仅凭 Git 字段反推当时尚未提交的工具文件。
 - 原 13 例汇总保留在 verification.json；当前 70 例汇总在 [verification-expanded.json](verification-expanded.json)。验证器核对 pass 前后行号、TSV 索引、源码快照哈希、关键指令/转换模式、预期拒绝，以及不应出现 scatter/DMA 的分支。
-- 初始、最终 TIR 与 pass 日志保留原样。kernel.py 是生成时的源模块快照，附带 make_kernel 工厂；共享工厂的具体参数见 manifest 和学习笔记。
+- 初始、最终 TIR 与 pass 日志保留原样。每个 kernel.py 只包含本例必要导入和 make_kernel()，参数已固定，无关分支已去除；69 例核对初始 IR 结构一致，另 1 例核对前端拒绝诊断一致。
 - 某些用例只为观察某通路，可能没有消费者或完整数值计算；动态 UB、普通 L0C→UB 等还需设备侧约束验证。成功源码生成不能代替设备编译与运行。
 
 在实验 worktree 根目录验证归档（只读取文本，不加载编译器）：

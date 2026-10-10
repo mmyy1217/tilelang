@@ -1,6 +1,7 @@
 """Check archived pass indices, diagnostics, source snapshots, and codegen routes."""
 
 import argparse
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -112,6 +113,11 @@ def verify_case(directory):
     snapshot = directory / "kernel.py"
     if "kernel_snapshot_sha256" in metadata:
         assert hashlib.sha256(snapshot.read_bytes()).hexdigest() == metadata["kernel_snapshot_sha256"]
+    if metadata.get("kernel_snapshot_format") == "standalone_specialized_factory":
+        module = ast.parse(snapshot.read_text())
+        functions = [node for node in module.body if isinstance(node, ast.FunctionDef)]
+        assert len(functions) == 1 and functions[0].name == "make_kernel"
+        assert all(isinstance(node, (ast.Import, ast.ImportFrom, ast.FunctionDef)) for node in module.body)
     if name in REJECTIONS:
         assert metadata["status"] == "failed"
         assert metadata["expected_error_matched"] is True

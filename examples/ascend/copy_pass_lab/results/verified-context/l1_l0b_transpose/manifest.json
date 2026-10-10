@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "lowered_to_cce_source",
   "expected_error": null,
-  "kernel_snapshot_sha256": "da9df4761e5de90b59a108376a1ca67063ddda8d93cb37ca2e44572d7b10a276",
+  "kernel_snapshot_sha256": "88fd84b0d3e5ed7166638fb5e3ac57369caa236bd8c93211b559069e36ca5a97",
   "factory_parameters": {
     "args": [],
     "kwargs": {
@@ -1225,5 +1225,6 @@
       "after_line": 32180
     }
   ],
-  "pass_count": 86
+  "pass_count": 86,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

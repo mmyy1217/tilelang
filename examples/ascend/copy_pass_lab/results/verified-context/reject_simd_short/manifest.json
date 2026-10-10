@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "failed",
   "expected_error": "total elements divisible by VReg",
-  "kernel_snapshot_sha256": "bdddfdee76b692b62c7353522d4366c63e2b3232b3b7aff8c823260cd762c0fb",
+  "kernel_snapshot_sha256": "7fe64810c1a6855796ad4765935ee8d3888391b82b54236864da9be15e2b8bf0",
   "factory_parameters": {
     "args": [],
     "kwargs": {
@@ -551,5 +551,6 @@
       "before_line": 2429
     }
   ],
-  "pass_count": 38
+  "pass_count": 38,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

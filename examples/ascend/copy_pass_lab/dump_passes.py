@@ -26,6 +26,7 @@ from tilelang.instrumentation import (
 
 from kernels import CASES as BASE_CASES
 from kernels_extended import CASES as EXTENDED_CASES, EXPECTED_ERRORS
+from kernel_snapshot import standalone_kernel
 
 CASES = {**BASE_CASES, **EXTENDED_CASES}
 
@@ -139,9 +140,10 @@ def run_case(name, factory, directory, kernel_path, expected_error=None):
         "expected_error": expected_error,
     }
     if name in CASES:
-        snapshot = kernel_path.read_text() + f"\n\ndef make_kernel():\n    return CASES[{name!r}]()\n"
+        snapshot = standalone_kernel(factory)
         (directory / "kernel.py").write_text(snapshot)
         metadata["kernel_snapshot_sha256"] = digest(snapshot)
+        metadata["kernel_snapshot_format"] = "standalone_specialized_factory"
         if isinstance(factory, partial):
             metadata["factory_parameters"] = {"args": factory.args, "kwargs": factory.keywords}
     success = False

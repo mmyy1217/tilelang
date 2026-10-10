@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "failed",
   "expected_error": "cast copy only supports f32->bf16 or f32->half",
-  "kernel_snapshot_sha256": "0b093d8464510dff9d93f81f573f4af65c71389e218bf520d6899c165f7cdb86",
+  "kernel_snapshot_sha256": "99c3c62bd2cb8a411922d54b677092329fd8d5454419be79d6f5de4a9d38b396",
   "factory_parameters": {
     "args": [],
     "kwargs": {
@@ -551,5 +551,6 @@
       "before_line": 2429
     }
   ],
-  "pass_count": 38
+  "pass_count": 38,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

@@ -11,7 +11,7 @@
   "target": "ascend",
   "status": "failed",
   "expected_error": "multiple of 32 bytes",
-  "kernel_snapshot_sha256": "2f01d9d9d38c7e71af5d3b3075fa4ce81c126ac83c6eed4cbd650ebdb8e78f03",
+  "kernel_snapshot_sha256": "2bea210d9c74e8680bb49a9b6b8cac6dd77ff9f88c155d9c0db299e2f620ef94",
   "factory_parameters": {
     "args": [],
     "kwargs": {
@@ -564,5 +564,6 @@
       "before_line": 1890
     }
   ],
-  "pass_count": 39
+  "pass_count": 39,
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }

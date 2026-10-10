@@ -1216,5 +1216,7 @@
       "after_line": 4686
     }
   ],
-  "pass_count": 86
+  "pass_count": 86,
+  "kernel_snapshot_sha256": "3e20f0f9afe222bc0b314604145be6b0d27f7c610980c28e4d3caddb355cb5d3",
+  "kernel_snapshot_format": "standalone_specialized_factory"
 }
