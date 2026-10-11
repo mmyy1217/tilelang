@@ -141,6 +141,26 @@ def test_fixed_outer_axis_affects_the_pointer_but_not_the_l1_row_pitch():
     _equal([copy.args[1].args[2]], [group * 2000])
 
 
+@pytest.mark.parametrize("byte_view", [False, True], ids=["native-fp4", "byte-backed-view"])
+def test_gm_to_l1_rejects_logical_fp4_transpose(byte_view):
+    storage = tirx.decl_buffer((256, 32), "int8", name="storage")
+    src = T.view(storage, (256, 64), "float4_e2m1fn") if byte_view else tirx.decl_buffer((256, 64), "float4_e2m1fn", name="src")
+    dst = tirx.decl_buffer((64, 256), "float4_e2m1fn", name="dst", scope="shared.l1")
+    if byte_view:
+        assert src.data.same_as(storage.data)
+    with pytest.raises(tvm.error.InternalError, match="GM->L1 packed FP4 copy does not support transpose=True"):
+        _lower(src, dst, layouts={dst: make_ascend_nz_layout(dst)}, transpose=True)
+
+
+def test_gm_to_l1_preserves_logical_fp8_transpose():
+    src = tirx.decl_buffer((256, 64), "float8_e4m3fn", name="src")
+    dst = tirx.decl_buffer((64, 256), "float8_e4m3fn", name="dst", scope="shared.l1")
+    after = _lower(src, dst, layouts={dst: make_ascend_nz_layout(dst)}, transpose=True)
+    (copy,) = calls(after, "tl.ascend_copy_gm_to_cbuf")
+    _equal([copy.args[i] for i in (3, 5, 6, 9, 10)], [64, 64, 256, 1, 64])
+    assert copy.args[11].value == ""
+
+
 @pytest.mark.parametrize("case", ["grouped", "tail"])
 def test_fix_uses_destination_extent_and_preserves_source_pitch(case):
     rows = 16 if case == "grouped" else 128
