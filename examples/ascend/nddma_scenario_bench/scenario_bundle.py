@@ -29,6 +29,10 @@ def main(source_name, SYMBOLS):
     source=Path(__file__).with_name(source_name).resolve()
     record=dict(source_sha256=sha(source),driver_sha256=sha(Path(__file__)),launcher_sha256=sha(Path(sys.argv[0])),helpers_sha256=sha(Path(__file__).with_name('run.py')),device=a.device,rounds=a.rounds,warmup=20,modes=SYMBOLS,cases=[])
     (root/'source.asc').write_bytes(source.read_bytes())
+    dependencies = [source.with_name('kv_reference_upstream.h')] if source_name == 'kv_cache.asc' else []
+    record['dependencies'] = {p.name: sha(p) for p in dependencies}
+    for dependency in dependencies:
+        (root/dependency.name).write_bytes(dependency.read_bytes())
     (root/'npu-before.txt').write_text(subprocess.check_output(['npu-smi','info'],text=True))
     if a.phase=='build':
         configs=json.loads(a.configs.read_text())
@@ -50,13 +54,14 @@ def main(source_name, SYMBOLS):
         lines += ['default: return 2; }} aclrtDestroyStream(stream); aclrtResetDevice(device); aclFinalize(); return status; }']
         wrapper=root/'bundle.asc'; wrapper.write_text('\n'.join(lines)+'\n')
         cmd=['bisheng',str(wrapper),'-o',str(root/'kernel'),'--npu-arch=dav-3510','-O2','-std=c++17',
-             '-B/usr/lib/gcc/x86_64-linux-gnu/9','-L/usr/lib/gcc/x86_64-linux-gnu/9','-lm']
+             '-B/usr/lib/gcc/x86_64-linux-gnu/9','-L/usr/lib/gcc/x86_64-linux-gnu/9','-lm','-I'+str(source.parent)]
         (root/'command.json').write_text(json.dumps(cmd,indent=2)); run(cmd,root/'compile.log',900)
         record.update(configs=configs,binary_sha256=sha(root/'kernel'))
     else:
         prior=json.loads((a.build/'results.json').read_text())
         binary=(a.build/'kernel').resolve()
         if sha(binary)!=prior['binary_sha256'] or sha(source)!=prior['source_sha256']: raise RuntimeError('Source/binary changed')
+        if prior.get('dependencies', {}) != record['dependencies']: raise RuntimeError('Dependencies changed')
         configs=prior['configs']; indices=a.indices if a.indices is not None else list(range(len(configs)))
         if any(i<0 or i>=len(configs) for i in indices): p.error('Invalid variant index')
         cases=[(i,g,b) for i in indices for g in a.groups for b in a.blocks]
