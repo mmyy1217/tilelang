@@ -54,3 +54,5 @@ python bundle.py profile --output results/holdout-b --build results/build \
 - [Transpose 的调度与策略选择](https://gitcode.com/cann/ops-math/blob/ba8d7909d0f89ce71a04804b0c585f4033937cfe/conversion/transpose/op_host/arch35/transpose_tiling_arch35.cpp#L83)
 
 完整阶段数据、版本对应关系和结论归档在文档仓 `Work/tilelang-gm-ub-loop-nddma/scenario-search/`；早期筛选源码在各实验的 `source.asc` 中冻结，不能把旧测量直接标成最终七版结果。
+
+第二轮补零、FP8／E8M0 步长抽取、MX 系数和五维切片实验见 [ROUND2.md](ROUND2.md)。
