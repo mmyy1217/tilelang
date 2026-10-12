@@ -2,12 +2,31 @@
 import argparse
 import csv
 import json
+import re
 from pathlib import Path
 import sys
 import shlex
 import subprocess
 from run import sha, run, stats
 
+
+def require_idle_device(status, device):
+    lines = status.splitlines()
+    found = False
+    for i, line in enumerate(lines):
+        process = re.match(r"^\|\s*(\d+)\s*\|\s*(\d+)\s*\|", line)
+        if process and int(process[1]) == device:
+            raise RuntimeError(f"KV benchmark requires idle device {device}; an existing process is present. Wait and retry.")
+        if re.match(rf"^\|\s*{device}\s*\|\s*Ascend", line):
+            fields = lines[i + 1].split('|')
+            if len(fields) < 5 or not fields[4].split() or not fields[4].split()[0].isdigit():
+                raise RuntimeError("Cannot parse selected device utilization; inspect npu-smi before retrying.")
+            found = True
+            utilization = int(fields[4].split()[0])
+            if utilization:
+                raise RuntimeError(f"KV benchmark requires 0% device utilization; device {device} reports {utilization}%. Wait and retry.")
+    if not found:
+        raise RuntimeError(f"Selected device {device} was not found in npu-smi output.")
 
 
 def main(source_name, SYMBOLS):
@@ -33,7 +52,10 @@ def main(source_name, SYMBOLS):
     record['dependencies'] = {p.name: sha(p) for p in dependencies}
     for dependency in dependencies:
         (root/dependency.name).write_bytes(dependency.read_bytes())
-    (root/'npu-before.txt').write_text(subprocess.check_output(['npu-smi','info'],text=True))
+    status = subprocess.check_output(['npu-smi','info'], text=True)
+    (root/'npu-before.txt').write_text(status)
+    if source_name == 'kv_cache.asc' and a.phase != 'build':
+        require_idle_device(status, a.device)
     if a.phase=='build':
         configs=json.loads(a.configs.read_text())
         configs=[c+[0,1] if len(c)==5 else c for c in configs]
