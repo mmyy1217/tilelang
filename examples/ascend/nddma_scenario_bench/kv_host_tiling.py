@@ -48,12 +48,14 @@ def request(layout, fp8, groups, tail):
                                         dict(name="is_seq_lens_cumsum", dtype="bool", value=False)])
 
 
-def decode(data, layout, groups, tail):
+def decode(data, layout, groups, tail, cores=64):
     if len(data) != ctypes.sizeof(TilingV35):
         raise RuntimeError(f"Expected V35 tiling ABI of {ctypes.sizeof(TilingV35)} bytes, got {len(data)}; inspect the installed schema")
     raw = TilingV35.from_buffer_copy(data)
     fields = {name: getattr(raw, name) for name, _ in TilingV35._fields_}
-    expected = dict(batchCount=groups, batchPerCore=1, needCoreNum=groups,
+    per_core = (groups + cores - 1) // cores
+    active_cores = (groups + per_core - 1) // per_core
+    expected = dict(batchCount=groups, batchPerCore=per_core, needCoreNum=active_cores,
                     kvCacheBlockSize=128, blockTableWidth=9, numBlocks=groups * 9 + 3,
                     hiddenSizeK=512, hiddenSizeV=64, numTokens=groups * (897 if tail else 1024),
                     nonContiguousFlag=0, keyOutStride0=512, valueOutStride0=64)
@@ -68,12 +70,14 @@ def decode(data, layout, groups, tail):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--soc", choices=("Ascend950PR_9579", "Ascend950PR_9589"), required=True)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     from asc_op_compile_base.common.platform.platform_info import set_current_compile_soc_info
     from asc_op_compile_base.asc_op_compiler.op_tiling import do_op_tiling
 
-    soc = "Ascend950PR_9589"
+    soc = args.soc
+    cores = 56 if soc == "Ascend950PR_9579" else 64
     set_current_compile_soc_info(soc)
     summary = dict(soc=soc, execution="host_only_no_npu", source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), cases=[])
     try:
@@ -85,9 +89,9 @@ def main():
             data = bytes(result["tiling_data"])
             result["tiling_data"] = data.hex()
             (args.output / f"{name}-raw.json").write_text(json.dumps(result, indent=2) + "\n")
-            fields = decode(data, layout, groups, tail)
+            fields = decode(data, layout, groups, tail, cores)
             key = 1001 if layout == "PA_NZ" else 1101
-            if result["tiling_key"] != key or result["block_dim"] != groups:
+            if result["tiling_key"] != key or result["block_dim"] != fields["needCoreNum"]:
                 raise RuntimeError(f"Unexpected dispatch in {name}; inspect raw results")
             kb = 1 if fp8 else 2
             whole = fields["maxUbHiddenSizeK"] >= 128 * 512 and fields["maxUbHiddenSizeV"] >= 128 * 64

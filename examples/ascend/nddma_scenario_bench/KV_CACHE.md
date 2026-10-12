@@ -82,9 +82,30 @@ Norm使用`--layout Norm`；每次输出目录必须新建。首先source已配�
 `kv_host_tiling.py`在CPU上调用已安装CANN的`do_op_tiling`，显式指定`Ascend950PR_9589`，不初始化NPU、不编译或启动设备kernel。需要服务器的配套CANN Python环境，不依赖设备空闲。
 
 ```bash
-python kv_host_tiling.py --output HOST_TILING
+python kv_host_tiling.py --soc Ascend950PR_9579 --output HOST_TILING
 ```
 
 2026-10-12完成24组：ND/NZ × BF16/BF16或E4M3/BF16 × 请求数1/3/64 × 整页/末页1token。返回的`block_dim`为1/3/64；NZ的tiling key为1001。BF16的单槽为122336B、K整块131072B，按原始kernel条件会逐token回退；FP8单槽65536B，K/V整块均可容纳。尾块没有改变容量分配。
 
 保存每组请求、完整原始tiling字节、解码字段和实际加载库哈希。解码ABI来自冻结社区`GatherPaKvCacheTilingDataV35`，严格校验208B长度及关键shape字段；库升级后不匹配应停止解释、重新核对schema。它证明安装包host如何规划给定输入，**不等于aclnn运行时实际分派、设备正确性或性能测试**。设备型号也仍需执行时核对。
+
+
+## 安装包API与候选的同进程对比
+
+`kv_api_compare_build.py`生成并编译独立AscendC程序，连接当前安装包API。`kv_api_compare_run.py`做正确性和msprof任务采样。默认要求空闲设备；用户明确允许在卡0与驻留进程并行后，可传`--device 0 --allow-occupied`，结果固定标为非独占的初步性能数据，不据此给最终提速保证。
+
+边界：仅PA_NZ、950PR_9579、B=128、K维512、V维64、E4M3/BF16或BF16/BF16、请求数1/3/64、INT32索引、连续输出、8页整块或尾页1token、块对齐偏移。其他芯片/布局显式拒绝，FP4和MX不在此探针范围。
+
+程序共用同一份设备输入、页表、输出和stream。候选复用`kv_cache.asc`的mode4（loop双缓冲）实现；生成时仅匹配单槽65536B/122336B、页表宽9、tile96及官方分核规则，保留原文件及生成文件哈希。实际卡0是9579（56个AIV），1/3/64请求分别启动1/3/32个核；此前离线9589的64请求→64核不能沿用。
+
+```bash
+python kv_api_compare_build.py --output COMPARE_BUILD
+python kv_api_compare_run.py check --build COMPARE_BUILD --output COMPARE_CHECK \
+  --dtype fp8 --groups 64 --tail 1 --device 0
+python kv_api_compare_run.py profile --build COMPARE_BUILD --output COMPARE_PROFILE \
+  --dtype fp8 --groups 64 --tail 1 --device 0
+```
+
+每组先做3种位模式、两种实现的完整K/V和guard检查，采样后分别再查一次。profile阶段每种实现20次预热、101次计时，逐轮交换先后顺序；另外的3次前检和1次后检不计时。必须恰有125个官方任务及125个候选任务；若发现额外设备任务，驱动停止给出比较数字，先核对完整API开销。重复读取属于热缓存测试，不代表HBM峰值带宽。
+
+官方API使用安装包预编译kernel，候选用配套9.3设备工具链构建；这个对比衡量可替换实现的实际差距，不将全部差距都归因于某一条DMA指令。官方API的host规划/分配时间未计入设备任务时间。
