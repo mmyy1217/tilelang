@@ -80,7 +80,7 @@ def main():
             (folder / "compile-command.json").write_text((binary.parent / "compile-command.json").read_text())
         result = {"name": name, "options": options, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
         if not args.build_only:
-            run([str(binary), str(args.rounds)], folder / "events.log", folder)
+            run(["stdbuf", "-oL", "-eL", str(binary), str(args.rounds)], folder / "events.log", folder)
             log = (folder / "events.log").read_text()
             if log.count(": PASS;") != 3:
                 raise RuntimeError(f"{name}: expected correctness PASS for all three kernels")
