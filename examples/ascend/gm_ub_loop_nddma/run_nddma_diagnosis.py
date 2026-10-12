@@ -12,6 +12,10 @@ from run_ascendc_comparison import run, summarize
 
 
 CASES = {
+    "paired_head": {"PACK_COMPARE_WIDTHS": 1},
+    "paired_wide": {"PACK_COMPARE_WIDTHS": 1, "PACK_CHANNEL_BYTES": 256},
+    "paired_token": {"PACK_COMPARE_WIDTHS": 1, "PACK_TOKEN_MAJOR": 1},
+    "paired_linear": {"PACK_COMPARE_WIDTHS": 1, "PACK_TOKEN_MAJOR": 1, "PACK_TILE_HEADS": 32},
     "head_b8": {},
     "head_no_dci": {"NDDMA_SKIP_DCI": 1},
     "head_b16": {"NDDMA_STORAGE": "uint16_t"},
@@ -53,6 +57,9 @@ def main():
         if args.cases and name not in args.cases:
             continue
         folder = root / name
+        symbols = ["PackOrdinary", "PackLoop", "PackNddma"]
+        if options.get("PACK_COMPARE_WIDTHS"):
+            symbols += ["PackB16", "PackB32", "PackNoDci"]
         folder.mkdir(exist_ok=True)
         binary = folder / "reference"
         if previous is None:
@@ -82,9 +89,9 @@ def main():
         if not args.build_only:
             run(["stdbuf", "-oL", "-eL", str(binary), str(args.rounds)], folder / "events.log", folder)
             log = (folder / "events.log").read_text()
-            if log.count(": PASS;") != 3:
-                raise RuntimeError(f"{name}: expected correctness PASS for all three kernels")
-            samples = {str(mode): [] for mode in range(3)}
+            if log.count(": PASS;") != len(symbols):
+                raise RuntimeError(f"{name}: expected correctness PASS for all {len(symbols)} kernels")
+            samples = {str(mode): [] for mode in range(len(symbols))}
             for line in log.splitlines():
                 if line.startswith("SAMPLE,"):
                     _, _, mode, duration = line.split(",")
@@ -108,7 +115,7 @@ def main():
                     with path.open() as stream:
                         rows.extend(csv.DictReader(stream))
                 result["device_tasks"] = {}
-                for mode, symbol in enumerate(("PackOrdinary", "PackLoop", "PackNddma")):
+                for mode, symbol in enumerate(symbols):
                     selected = sorted((row for row in rows if symbol in row["Op Name"]), key=lambda row: float(row["Task Start Time(us)"]))
                     if len(selected) != args.rounds + 11:
                         raise RuntimeError(f"{name}/{symbol}: unexpected task count {len(selected)}")
