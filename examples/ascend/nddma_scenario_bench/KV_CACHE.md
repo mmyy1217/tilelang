@@ -56,3 +56,23 @@ python kv_bundle.py check --build BOUNDARY_BUILD --output BOUNDARY_RUN \
 每个配置/请求数/核数组合进行3种输入逐位校验：随机位模式、空/单token/尾块、页表重排及跨请求重复页、非零块偏移。两路输出从前64B guard到全部容量（含未使用尾部）完整比较。20轮预热，测量轮次中轮换版本顺序，最后逐版本复检。性能只取msprof设备任务时间，严格核对每个符号的采样数。重复输入属于热缓存实验，不能据有效字节数声称物理HBM流量。
 
 占用检查：驱动在每次check/profile启动前检查所选设备的利用率和驻留进程，非空闲则拒绝启动。运行中仍可能新增其他任务，必须核对结束快照；受干扰的轮次整组隔离，不能仅凭启动检查认定全程独占。
+
+## 完整官方 API 验证入口
+
+`kv_aclnn_probe.cpp` 通过当前运行时的 `aclnnGatherPaKvCacheGetWorkspaceSize` 和 `aclnnGatherPaKvCache` 调用安装包，由官方 host 决定 tiling，不手工填写 tiling。`kv_aclnn_probe.py` 负责构建、版本哈希和空闲检查。
+
+2026-10-12 状态：CANN 9.2 beta.2 上完成 host C++ 编译及链接，无编译警告；设备有其他进程，驱动拒绝启动。**尚未完成这条 API 的设备正确性和性能验证。** 此处成功构建不代表设备 kernel 编译或执行成功。
+
+覆盖范围：B=128、压缩KV维度512、RoPE维度64、请求数1/3/64、每请求8页、整页或末页仅1个token；页号乱序且允许请求间重复，偏移1个完整页，INT32索引。K/V分别用BF16/BF16或FP8 E4M3/BF16。Norm输入是连续ND；PA_NZ输入由CPU显式按32B通道组排列，并给aclTensor设置FRACTAL_NZ元数据，未用通用`format_cast`替代PA_NZ布局。
+
+CPU参考直接从原始ND数据按页表取token，独立于NZ打包地址；3种输入位模式分别检查完整K/V及两侧64B保护区。这里搬运数值位，不检验量化误差。不覆盖FP4、非连续输出、MX系数、非法页号或真实模型分支。
+
+```bash
+python kv_aclnn_probe.py build --output API_BUILD
+python kv_aclnn_probe.py check --build API_BUILD --output API_NZ_BF16 \
+  --device 1 --layout PA_NZ --dtype bf16 --groups 1 --tail 0 --debug-logs
+python kv_aclnn_probe.py check --build API_BUILD --output API_NZ_FP8 \
+  --device 1 --layout PA_NZ --dtype fp8 --groups 1 --tail 1 --debug-logs
+```
+
+Norm使用`--layout Norm`；每次输出目录必须新建。首先source已配套的运行时环境；不为此切换完整CANN运行时。设备0/1需已获授权且空闲。`--repeats`只增加API调用次数，不产生可信的性能指标；正式对比还需msprof采集全部设备任务，并匹配候选kernel的输入、分核、UB及缓存条件。不得把API host调用耗时与旧实验的设备任务耗时直接相除。
