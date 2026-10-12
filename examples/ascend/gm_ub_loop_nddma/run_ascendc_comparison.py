@@ -1,11 +1,14 @@
 """Build and profile the three AscendC window-pack implementations on an NPU."""
 
 import argparse
+from contextlib import suppress
 import csv
 import hashlib
 import json
+import os
 from pathlib import Path
 import shlex
+import signal
 import statistics
 import subprocess
 
@@ -22,8 +25,20 @@ CASES = [
 
 
 def run(command, log, cwd):
-    with log.open("w") as output:
-        subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT, check=True, timeout=180)
+    with (
+        log.open("w") as output,
+        subprocess.Popen(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT, start_new_session=True) as process,
+    ):
+        try:
+            status = process.wait(timeout=180)
+        except subprocess.TimeoutExpired:
+            # Stop the profiler and its application, not unrelated device jobs.
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+            raise
+        if status:
+            raise subprocess.CalledProcessError(status, command)
 
 
 def summarize(values):
