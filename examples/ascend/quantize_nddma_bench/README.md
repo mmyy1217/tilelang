@@ -20,14 +20,14 @@
 
 ```bash
 python run_benchmark.py build --output results/build --channels 8 16
-python run_benchmark.py check --output results/check --binaries results/build \
+python run_benchmark.py check --batch --output results/check --binaries results/build \
   --channels 8 16 --tiles 1024 8192 --blocks 1 64 --rows 3 127 4097 --device 1
-python run_benchmark.py profile --output results/sweep --binaries results/build \
+python run_benchmark.py profile --batch --output results/sweep --binaries results/build \
   --channels 16 --tiles 1024 4096 8192 --blocks 32 64 \
   --rows 4096 65536 1048576 --rounds 31 --device 1
 ```
 
-`--pipe` 增加流水计数器。编译驱动默认至多三个并行编译任务；设备测试串行运行。固定 GCC 9 主机链接目录来自当前测试环境，在其他机器上需要修改。
+`--batch` 让同一二进制的多组 shape/核数共用一个 ACL 设备上下文，减少共享机器上重复启动 AICPU 的机会；每组仍独立校验、预热、计时。`--pipe` 增加流水计数器。编译驱动默认至多三个并行编译任务；设备测试串行运行。固定 GCC 9 主机链接目录来自当前测试环境，在其他机器上需要修改。
 
 ## 正确性与计时
 

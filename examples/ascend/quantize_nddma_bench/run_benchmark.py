@@ -29,11 +29,11 @@ def summary(values):
             'p25_us': sorted(values)[len(values)//4], 'p75_us': sorted(values)[3*len(values)//4]}
 
 
-def validate(log, rounds):
+def validate(log, rounds, cases=1):
     text = log.read_text()
-    if text.count('PASS,pattern=') != 3 * len(SYMBOLS) or 'MISMATCH' in text or 'FAIL' in text:
+    if text.count('PASS,pattern=') != 3 * len(SYMBOLS) * cases or 'MISMATCH' in text or 'FAIL' in text:
         raise RuntimeError(f'Correctness failure or incomplete checks: {log}')
-    if rounds and text.count('status=PASS') != len(SYMBOLS):
+    if rounds and text.count('status=PASS') != len(SYMBOLS) * cases:
         raise RuntimeError(f'Missing post-timing checks: {log}')
 
 
@@ -49,6 +49,7 @@ def main():
     p.add_argument('--device', type=int, default=1)
     p.add_argument('--rounds', type=int, default=31)
     p.add_argument('--pipe', action='store_true')
+    p.add_argument('--batch', action='store_true', help='Reuse one ACL device context for all cases of each binary')
     args = p.parse_args()
     if any(c not in (8, 16) for c in args.channels): p.error('Only C=8 or C=16 is supported')
     if any(t < 64 or t > 8192 or t % 64 for t in args.tiles): p.error('Tile must be a multiple of 64 in [64,8192]')
@@ -80,6 +81,53 @@ def main():
         if not args.binaries: p.error('--binaries is required')
         prior = json.loads((args.binaries/'results.json').read_text())
         if prior['source_sha256'] != sha(source): raise RuntimeError('Source differs from compiled source')
+        if args.batch:
+            for c, tile in itertools.product(args.channels, args.tiles):
+                folder = root / f'c{c}_t{tile}'
+                folder.mkdir()
+                binary = (args.binaries/f'c{c}_t{tile}'/'kernel').resolve()
+                entry = next(x for x in prior['cases'] if x['channels']==c and x['tile']==tile)
+                if sha(binary) != entry['binary_sha256']: raise RuntimeError('Binary hash mismatch')
+                cases = list(itertools.product(args.blocks, args.rows))
+                rounds = args.rounds if args.phase == 'profile' else 0
+                app = [str(binary), '--batch', str(rounds), str(args.device)]
+                app += [f'{rows}:{blocks}' for blocks, rows in cases]
+                command = app
+                if args.phase == 'profile':
+                    command = ['msprof', f'--output={folder / "profile"}', '--task-time=on',
+                               '--sys-lp=off', f'--application={shlex.join(app)}']
+                    command += ['--ai-core=on', '--aic-mode=task-based', '--aic-metrics=PipeUtilization'] if args.pipe else ['--ai-core=off']
+                (folder/'command.json').write_text(json.dumps(command, indent=2))
+                run(command, folder/'run.log', 300)
+                validate(folder/'run.log', rounds, len(cases))
+                per_mode = {}
+                if rounds:
+                    data = []
+                    for path in (folder/'profile').rglob('op_summary*.csv'):
+                        with path.open() as stream: data.extend(csv.DictReader(stream))
+                    for mode, symbol in enumerate(SYMBOLS):
+                        selected = sorted((x for x in data if symbol in x['Op Name']), key=lambda x: float(x['Task Start Time(us)']))
+                        if len(selected) != (rounds + 23) * len(cases):
+                            raise RuntimeError(f'{folder}/{symbol}: unexpected task count {len(selected)}')
+                        per_mode[str(mode)] = selected
+                for index, (blocks, rows) in enumerate(cases):
+                    name = f'c{c}_t{tile}_b{blocks}_r{rows}'
+                    result = dict(entry, name=name, blocks=blocks, rows=rows,
+                                  profile_group=folder.name, case_index=index, correctness='PASS')
+                    if rounds:
+                        result['device_tasks'] = {}
+                        for mode, all_rows in per_mode.items():
+                            selected = all_rows[index*(rounds+23)+23:(index+1)*(rounds+23)]
+                            result['device_tasks'][mode] = summary([float(x['Task Duration(us)']) for x in selected])
+                            if args.pipe:
+                                result.setdefault('pipe', {})[mode] = {
+                                    key: summary([float(x[key]) for x in selected]) for key in selected[0]
+                                    if key.endswith('_time(us)') and all(x[key] not in ('', 'N/A') for x in selected)}
+                    report['cases'].append(result)
+                    print(name, result.get('device_tasks', 'PASS'), flush=True)
+                (root/'results.json').write_text(json.dumps(report, indent=2)+'\n')
+            (root/'npu-after.txt').write_text(subprocess.check_output(['npu-smi', 'info'], text=True))
+            return
         for c, tile, blocks, rows in itertools.product(args.channels, args.tiles, args.blocks, args.rows):
             name = f'c{c}_t{tile}_b{blocks}_r{rows}'
             folder = root/name
