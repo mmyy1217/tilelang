@@ -76,3 +76,15 @@ python kv_aclnn_probe.py check --build API_BUILD --output API_NZ_FP8 \
 ```
 
 Norm使用`--layout Norm`；每次输出目录必须新建。首先source已配套的运行时环境；不为此切换完整CANN运行时。设备0/1需已获授权且空闲。`--repeats`只增加API调用次数，不产生可信的性能指标；正式对比还需msprof采集全部设备任务，并匹配候选kernel的输入、分核、UB及缓存条件。不得把API host调用耗时与旧实验的设备任务耗时直接相除。
+
+## 官方 host tiling 离线查询
+
+`kv_host_tiling.py`在CPU上调用已安装CANN的`do_op_tiling`，显式指定`Ascend950PR_9589`，不初始化NPU、不编译或启动设备kernel。需要服务器的配套CANN Python环境，不依赖设备空闲。
+
+```bash
+python kv_host_tiling.py --output HOST_TILING
+```
+
+2026-10-12完成24组：ND/NZ × BF16/BF16或E4M3/BF16 × 请求数1/3/64 × 整页/末页1token。返回的`block_dim`为1/3/64；NZ的tiling key为1001。BF16的单槽为122336B、K整块131072B，按原始kernel条件会逐token回退；FP8单槽65536B，K/V整块均可容纳。尾块没有改变容量分配。
+
+保存每组请求、完整原始tiling字节、解码字段和实际加载库哈希。解码ABI来自冻结社区`GatherPaKvCacheTilingDataV35`，严格校验208B长度及关键shape字段；库升级后不匹配应停止解释、重新核对schema。它证明安装包host如何规划给定输入，**不等于aclnn运行时实际分派、设备正确性或性能测试**。设备型号也仍需执行时核对。
