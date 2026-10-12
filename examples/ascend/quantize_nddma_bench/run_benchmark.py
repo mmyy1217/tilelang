@@ -10,7 +10,7 @@ import shlex
 import statistics
 import subprocess
 
-SYMBOLS = ['QuantNddmaTile', 'QuantUbBroadcast', 'QuantRegisterReuse', 'QuantNddmaRegister']
+SYMBOLS = ['QuantNddmaTile', 'QuantUbBroadcast', 'QuantRegisterReuse', 'QuantNddmaRegister', 'QuantUbRegister']
 
 
 def sha(path):
@@ -31,9 +31,9 @@ def summary(values):
 
 def validate(log, rounds):
     text = log.read_text()
-    if text.count('PASS,pattern=') != 12 or 'MISMATCH' in text or 'FAIL' in text:
+    if text.count('PASS,pattern=') != 3 * len(SYMBOLS) or 'MISMATCH' in text or 'FAIL' in text:
         raise RuntimeError(f'Correctness failure or incomplete checks: {log}')
-    if rounds and text.count('status=PASS') != 4:
+    if rounds and text.count('status=PASS') != len(SYMBOLS):
         raise RuntimeError(f'Missing post-timing checks: {log}')
 
 

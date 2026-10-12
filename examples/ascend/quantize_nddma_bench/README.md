@@ -10,8 +10,9 @@
 | 1 `QuantUbBroadcast` | 普通 DMA 搬一行，Vector 一次展开成整个 tile | 与模式 0 相同 |
 | 2 `QuantRegisterReuse` | 普通 DMA 只搬一行 | 每个 VF 开始时 gather 一次，在内部向量循环中复用寄存器 |
 | 3 `QuantNddmaRegister` | NDDMA 只展开成 64 个 FP32 | 每个 VF 加载一次，在内部向量循环中复用寄存器 |
+| 4 `QuantUbRegister` | 普通 DMA 搬一行，Vector 一次展开成 64 个 FP32 | 与模式 3 相同 |
 
-四版每核只准备一次 scale，并跨多个输入 tile 复用；主输入和输出使用相同双缓冲流水。没有把普通版写成每行一次 DMA，也没有让它每 tile 重复搬 scale。
+五版每核只准备一次 scale，并跨多个输入 tile 复用；主输入和输出使用相同双缓冲流水，首块输入搬运与 Vector 系数准备重叠。没有把普通版写成每行一次 DMA，也没有让它每 tile 重复搬 scale。
 
 ## 运行
 
@@ -20,7 +21,7 @@
 ```bash
 python run_benchmark.py build --output results/build --channels 8 16
 python run_benchmark.py check --output results/check --binaries results/build \
-  --channels 8 16 --tiles 1024 8192 --blocks 1 32 --rows 1 3 127 257 4097 --device 1
+  --channels 8 16 --tiles 1024 8192 --blocks 1 64 --rows 3 127 4097 --device 1
 python run_benchmark.py profile --output results/sweep --binaries results/build \
   --channels 16 --tiles 1024 4096 8192 --blocks 32 64 \
   --rows 4096 65536 1048576 --rounds 31 --device 1
@@ -30,9 +31,9 @@ python run_benchmark.py profile --output results/sweep --binaries results/build 
 
 ## 正确性与计时
 
-- 每次运行，三个数据模式 × 四个版本逐字节与 CPU FP8 参考比较；包含随机值、全部正负相邻编码的舍入中点及两侧、溢出饱和、负零。
+- 每次运行，三个数据模式 × 五个版本逐字节与 CPU FP8 参考比较；包含随机值、全部正负相邻编码的舍入中点及两侧、溢出饱和、负零。
 - scale 在模式间改变，检查复用后不会读取旧值。输出前后各 256B guard，检查越界写入；输入预留尾部空间，**不能据此声称做了越界读检测**。
-- 非整 tile 与多轮双缓冲由 `check` 的 shape 集合覆盖。结束计时后再次核验四个版本的结果与 guard。
+- 非整 tile 与多轮双缓冲由 `check` 的 shape 集合覆盖。结束计时后再次核验五个版本的结果与 guard。
 - CPU 参考可独立用 `verify_oracle.py --output <directory>` 对照 `ml_dtypes`；需要 NumPy、ml_dtypes 和 g++。
 - 每版预热 20 次，计时顺序逐轮轮换；以 msprof `Task Duration(us)` 为结论依据。每版跳过前三次正确性调用和 20 次预热，严格检查剩余样本数。
 - 重复使用同一缓冲区，属于热缓存实验；不能将有效字节数除耗时当成实测 HBM 带宽。共享机器的残留任务与频率波动需结合现场记录判断。
