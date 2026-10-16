@@ -130,3 +130,64 @@ def test_nd2nz_scatter(sd, dd, inside_vf):
     input_cast = input_gm.to(dtype=dd)
     output_back = output_gm.view(COLS // frac_len, ROWS + 1, frac_len)[:, :-1, :].permute(1, 0, 2).reshape(ROWS, COLS)
     assert torch.equal(input_cast, output_back), f"sd={sd} dd={dd}"
+
+
+@tilelang.testing.requires_ascend
+@pytest.mark.parametrize("cols", [*range(32, 513, 32), 544, 608])
+@pytest.mark.parametrize("inside_vf", [False, True])
+def test_fp8_nd2nz_scatter_preserves_bits(cols, inside_vf):
+    dtype = torch.float8_e4m3fn
+    rows = 32
+    # Include every encoding, including NaNs and signed zero: this is a permutation.
+    bits = torch.randint(0, 256, (rows * cols,), dtype=torch.uint8, generator=torch.Generator().manual_seed(31))
+    bits[:256] = torch.arange(256, dtype=torch.uint8)
+    bits = bits.reshape(rows, cols)
+    kernel = tilelang.compile(
+        nd2nz_scatter_test(dtype, dtype, rows, cols, inside_vf), target="ascend", out_idx=-1, execution_backend="tvm_ffi"
+    )
+    output = kernel(bits.view(dtype).npu()).cpu().view(torch.uint8)
+    unpacked = output.reshape(cols // 32, rows + 1, 32)[:, :rows, :].permute(1, 0, 2).reshape(rows, cols)
+    torch.testing.assert_close(unpacked, bits, rtol=0, atol=0)
+
+
+@tilelang.testing.requires_ascend
+@pytest.mark.parametrize("cols", range(32, 513, 32))
+def test_fp8_nd2nz_source_at_ub_boundary(cols):
+    rows = 32
+    ub_bytes = 248 * 1024
+    dtype = "float8_e4m3fn"
+
+    @T.prim_func
+    def main(input_gm: T.Tensor((rows, cols), dtype), output_gm: T.Tensor((rows + 1, cols), dtype)):
+        with T.Kernel(1):
+            # Ascend950 exposes 248 KiB UB; place the final source byte at its end.
+            arena = T.alloc_shared((ub_bytes,), dtype)
+            src = T.make_tensor_from_addr(
+                T.access_ptr(arena[ub_bytes - rows * cols], "rw", extent=rows * cols),
+                (rows, cols),
+                dtype,
+                storage_scope="shared.dyn",
+            )
+            nz = T.make_tensor_from_addr(
+                T.access_ptr(arena[0], "rw", extent=(rows + 1) * cols),
+                (rows + 1, cols),
+                dtype,
+                storage_scope="shared.dyn",
+            )
+            T.annotate_layout({nz: make_ascend_compact_nz_layout(nz)})
+            T.copy(input_gm, src)
+            T.ascend_set_flag("MTE2_V", 0)
+            T.ascend_wait_flag("MTE2_V", 0)
+            with T.SimdVF():
+                T.copy(src, nz[:rows, :])
+            T.ascend_set_flag("V_MTE3", 0)
+            T.ascend_wait_flag("V_MTE3", 0)
+            T.copy(nz, output_gm)
+
+    kernel = tilelang.compile(
+        main, target="ascend", out_idx=-1, execution_backend="tvm_ffi", pass_configs={"tl.enable_auto_schedule": False}
+    )
+    bits = torch.arange(rows * cols, dtype=torch.int32).to(torch.uint8).reshape(rows, cols)
+    output = kernel(bits.view(torch.float8_e4m3fn).npu()).cpu().view(torch.uint8)
+    unpacked = output.reshape(cols // 32, rows + 1, 32)[:, :rows, :].permute(1, 0, 2).reshape(rows, cols)
+    torch.testing.assert_close(unpacked, bits, rtol=0, atol=0)

@@ -368,6 +368,13 @@ private:
                             .as<Map<Buffer, Layout>>()
                             .value();
       for (auto [buffer, layout] : layout_map) {
+        if (IsSharedBuffer(buffer) && !buffer_map_.count(buffer->data)) {
+          // Pointer-backed views keep their existing binding; only indices
+          // change.
+          buffer_map_.insert({buffer->data, buffer});
+          buffer_data_to_buffer_.Set(buffer->data, buffer);
+          var_remap_.Set(buffer->data, buffer->data);
+        }
         buffer_remap_.Set(buffer,
                           makeBufferWithLayout(buffer, layout, var_remap_));
         layout_map_.Set(buffer, layout);

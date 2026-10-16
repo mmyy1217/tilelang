@@ -717,6 +717,8 @@ private:
           return 4;
         if (dtype && (dtype->value == "half" || dtype->value == "bfloat16_t"))
           return 2;
+        if (dtype && dtype->value == "fp8_e4_t")
+          return 1;
         return 0;
       };
       if (rows && cols && rows->value > 0 && cols->value > 0 &&
@@ -727,12 +729,16 @@ private:
           auto source_row = PhysicalSpan(cols->value, src_bytes, 0);
           auto destination_row = PhysicalSpan(cols->value, dst_bytes, 0);
           if (src_bytes && dst_bytes && source_row && destination_row) {
-            // The scatter template loads whole 256-byte vectors, including
-            // the last partial vector of the last source row.
-            int64_t vectors = (*source_row - 1) / 256 + 1;
-            if (auto last_row = PhysicalSpan(vectors, 256, 0))
-              source_bytes =
-                  PhysicalSpan(rows->value - 1, *source_row, *last_row);
+            if (src_bytes == 1 && dst_bytes == 1) {
+              // E4M3 tails load complete 32-byte blocks without overreading.
+              source_bytes = PhysicalSpan(rows->value, *source_row, 0);
+            } else {
+              // Legacy templates load full vectors even in their final pass.
+              int64_t vectors = (*source_row - 1) / 256 + 1;
+              if (auto last_row = PhysicalSpan(vectors, 256, 0))
+                source_bytes =
+                    PhysicalSpan(rows->value - 1, *source_row, *last_row);
+            }
             destination_bytes =
                 PhysicalSpan(rows->value + 1, *destination_row, 0);
           }

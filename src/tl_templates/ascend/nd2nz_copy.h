@@ -48,15 +48,65 @@ struct ascend_nd2nz_scatter_impl {
 
 // ── (T, T): same-type scatter, no cast ──────────────────────────────
 
-// plt_b32/plt_b16(COLS, POST_UPDATE) generates runtime masks whose first
-// min(COLS, VL_T) lanes are active and auto-decrements COLS by VL_T.
-// This unifies full-VL and partial-VL passes into a single while loop.
+// E4M3 uses separate full/tail loops; other types retain the updating-mask
+// loop.
 template <int ROWS, int COLS, typename T>
 struct ascend_nd2nz_scatter_impl<
     ROWS, COLS, T, T, std::enable_if_t<(COLS * sizeof(T)) % 32 == 0>> {
   __simd_callee__ static inline void apply(__ubuf__ T *src_ub,
                                            __ubuf__ T *dst_nz_ub) {
     static_assert(ROWS % 16 == 0, "ROWS must be a multiple of 16");
+
+    if constexpr (std::is_same<T, fp8_e4_t>::value) {
+      auto *src = reinterpret_cast<__ubuf__ uint8_t *>(src_ub);
+      auto *dst = reinterpret_cast<__ubuf__ uint8_t *>(dst_nz_ub);
+      if constexpr (COLS >= 256) {
+        const auto full_mask = asc_create_mask_b8(PAT_ALL);
+        for (int pass = 0; pass < COLS / 256; ++pass) {
+          auto *sp = src + pass * 256;
+          auto *dp = dst + pass * (ROWS + 1) * 256;
+          for (int r = 0; r < ROWS; ++r) {
+            vector_uint8_t data;
+            asc_loadalign_postupdate(data, sp, COLS);
+            asc_storealign_postupdate(dp, data, ROWS + 1, 1, full_mask);
+          }
+        }
+      }
+
+      if constexpr (COLS % 256 != 0) {
+        constexpr int tail = COLS % 256;
+        constexpr int boundary_rows = 1 + (255 - tail) / COLS;
+        constexpr int safe_rows =
+            tail == 32 || ROWS < boundary_rows ? 0 : ROWS - boundary_rows;
+        if constexpr (safe_rows > 0) {
+          uint32_t count = tail;
+          const auto mask = asc_update_mask_b8(count);
+          auto *sp = src + (COLS / 256) * 256;
+          auto *dp = dst + (COLS / 256) * (ROWS + 1) * 256;
+          // These complete vector loads stay within the source allocation.
+          for (int r = 0; r < safe_rows; ++r) {
+            vector_uint8_t data;
+            asc_loadalign_postupdate(data, sp, COLS);
+            asc_storealign_postupdate(dp, data, ROWS + 1, 1, mask);
+          }
+        }
+        uint32_t count = 32;
+        const auto tail_mask = asc_update_mask_b8(count);
+        // Read only complete data blocks in the tail; a store mask cannot
+        // prevent a full-vector source load from crossing the allocation.
+        for (int block = 0; block < (COLS % 256) / 32; ++block) {
+          const int col = (COLS / 256) * 256 + block * 32;
+          auto *sp = src + col;
+          auto *dp = dst + col * (ROWS + 1) + safe_rows * 32;
+          for (int r = safe_rows; r < ROWS; ++r) {
+            vector_uint8_t data;
+            asc_loadalign_brc_datablock(data, sp + r * COLS);
+            asc_storealign_postupdate(dp, data, ROWS + 1, 1, tail_mask);
+          }
+        }
+      }
+      return;
+    }
 
     constexpr int VL_T = 256 / sizeof(T);
     constexpr int STRIDE = ((ROWS + 1) << 16) | 1;
@@ -65,7 +115,9 @@ struct ascend_nd2nz_scatter_impl<
     int pass = 0;
     while (count > 0) {
       vector_bool mask;
-      if constexpr (sizeof(T) == 2) {
+      if constexpr (std::is_same<T, fp8_e4_t>::value) {
+        mask = asc_update_mask_b8(count);
+      } else if constexpr (sizeof(T) == 2) {
         mask = asc_update_mask_b16(count);
       } else if constexpr (sizeof(T) == 4) {
         mask = asc_update_mask_b32(count);

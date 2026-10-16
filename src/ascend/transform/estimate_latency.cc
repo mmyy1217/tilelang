@@ -1208,8 +1208,8 @@ private:
           << GetRef<Call>(op);
       ICHECK_GT(*rows, 0);
       ICHECK_GT(*cols, 0);
-      ICHECK(src_dtype->value == "float" || src_dtype->value == "half" ||
-             src_dtype->value == "bfloat16_t");
+      int source_bytes = Nd2NzElementBytes(src_dtype->value);
+      Nd2NzElementBytes(dst_dtype->value);
 
       const AscendLatencyParams::Nd2NzLatencyParams *profile =
           &params->nd2nz_same_dtype;
@@ -1225,10 +1225,26 @@ private:
         }
       }
 
-      int64_t vector_elements = src_dtype->value == "float" ? 64 : 128;
+      int64_t vector_elements = 256 / source_bytes;
       int64_t passes = *cols / vector_elements + (*cols % vector_elements != 0);
       int64_t row_iterations =
           CheckedSerialTaskMultiply(*rows, passes, "ND->NZ row iterations");
+      if (src_dtype->value == "fp8_e4_t" && *cols % 256 != 0) {
+        int64_t tail = *cols % 256;
+        int64_t boundary_rows = 1 + (255 - tail) / *cols;
+        int64_t safe_rows =
+            tail == 32 ? 0 : std::max<int64_t>(0, *rows - boundary_rows);
+        passes = *cols / 256 + (safe_rows > 0) + tail / 32;
+        // Most rows keep vector loads; only boundary rows use block loads.
+        row_iterations = CheckedSerialTaskAdd(
+            CheckedSerialTaskMultiply(*rows, *cols / 256, "ND->NZ full rows"),
+            CheckedSerialTaskAdd(
+                safe_rows,
+                CheckedSerialTaskMultiply(*rows - safe_rows, tail / 32,
+                                          "ND->NZ boundary rows"),
+                "ND->NZ tail rows"),
+            "ND->NZ row iterations");
+      }
       int64_t row_cycles_x4 = CheckedSerialTaskMultiply(
           row_iterations, profile->row_cycles_x4, "ND->NZ row cycles");
       int64_t cycles = CheckedSerialTaskAdd(
@@ -1596,7 +1612,7 @@ private:
         << "tl.ascend_nd2nz_post_copy expects 6 arguments";
     const auto *dtype = op->args[5].as<StringImmNode>();
     ICHECK(dtype) << "tl.ascend_nd2nz_post_copy dtype must be a StringImm";
-    int64_t element_bytes = dtype->value == "float" ? 4 : 2;
+    int64_t element_bytes = Nd2NzElementBytes(dtype->value);
     int64_t rows = EstimateExprUpperBound(op->args[2]);
     int64_t cols = EstimateExprUpperBound(op->args[3]);
     int64_t bytes = SafeMultiply(SafeMultiply(rows, cols), element_bytes);

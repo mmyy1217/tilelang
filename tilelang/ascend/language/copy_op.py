@@ -255,6 +255,25 @@ def copy(  # noqa: A001
     destination allocation must reserve one padding row, and the copied region
     must exclude that row (for example, ``T.copy(src, dst[:rows, :])``).
 
+    For E4M3FN UB-to-L1 copies, source and destination dtypes must match and
+    transpose is unsupported. An unannotated dense ND source copied to a
+    canonical NZ L1 destination is reordered automatically: the region must
+    cover complete source rows, with static rows divisible by 16 and columns
+    divisible by 32. The source base and destination column offset must be
+    32-byte aligned. The normalized L1 allocation height must be static and
+    divisible by 16. Conversion normally allocates ``(rows + 1) * cols``
+    scratch elements; a single 32-byte column group can skip the scatter.
+
+    An already populated Compact NZ or MajorK NZ source is copied without
+    reordering. Both regions must have equal rows and columns, with column
+    offsets and extents divisible by 32. Allocation heights may differ; they
+    determine physical pitches, and the UB height need not equal ``rows + 1``.
+    Explicit NZ buffer strides are unsupported. Dynamic regions require
+    provable alignment and DMA parameter bounds. Both NZ paths select one
+    matrix on each leading axis and require regions to fit their allocations.
+    Raw ND-to-ND E4M3FN copies also support 2-D pitches when burst lengths,
+    gaps and offsets satisfy the 32-byte DMA alignment requirements.
+
     A copy whose destination is an MX scale-factor handle
     (:func:`tilelang.ascend.language.alloc_l0a_sf` /
     :func:`~tilelang.ascend.language.alloc_l0b_sf`) loads the per-block
