@@ -12,6 +12,7 @@
 #include <tvm/tirx/op.h>
 
 #include <algorithm>
+#include <string>
 
 #include "op/utils.h"
 
@@ -20,6 +21,19 @@ namespace tl {
 
 constexpr const char *kL0SFBindings = "tl.l0_sf_bindings";
 using L0SFBindings = ffi::Map<tirx::Var, tirx::Var>;
+
+inline int Nd2NzElementBytes(const std::string &dtype) {
+  if (dtype == "fp8_e4_t")
+    return 1;
+  if (dtype == "half" || dtype == "bfloat16_t")
+    return 2;
+  if (dtype == "float")
+    return 4;
+  ICHECK(false) << "Unsupported ND->NZ dtype name: " << dtype
+                << ". Expected half, bfloat16_t, float or fp8_e4_t; use a "
+                   "supported dtype before lowering.";
+  return 0;
+}
 
 // The annotation is emitted by alloc_l0*_sf, never inferred from consumers.
 L0SFBindings CollectL0SFBindings(const tirx::Stmt &body);

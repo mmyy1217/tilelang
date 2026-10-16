@@ -19,6 +19,7 @@
 #include "arith/pattern_match.h"
 
 #include "ascend/op/builtin.h"
+#include "ascend/op/utils.h"
 #include "backend/common/target_utils.h"
 #include "transform/common/attr.h"
 
@@ -1621,6 +1622,8 @@ void CodeGenTileLangAscend::EmitNd2NzScatter_(const CallNode *op) {
   const int64_t cols = GetIntImmArg(op, 3, kIntrinsic, "cols");
   const std::string dst_dtype = GetStringImmArg(op, 4, kIntrinsic, "dst_dtype");
   const std::string src_dtype = GetStringImmArg(op, 5, kIntrinsic, "src_dtype");
+  tl::Nd2NzElementBytes(src_dtype);
+  tl::Nd2NzElementBytes(dst_dtype);
 
   std::ostringstream function_name;
   function_name << (IsInsideSimdVF() ? "ascend_nd2nz_scatter_callee"
@@ -1640,7 +1643,7 @@ void CodeGenTileLangAscend::EmitNd2NzPostCopy_(const CallNode *op) {
   const int64_t full_rows = GetIntImmArg(op, 4, kIntrinsic, "full_rows");
   const std::string dst_dtype = GetStringImmArg(op, 5, kIntrinsic, "dst_dtype");
 
-  const int64_t element_bytes = dst_dtype == "float" ? 4 : 2;
+  const int64_t element_bytes = tl::Nd2NzElementBytes(dst_dtype);
   const int64_t elements_per_c0 = 32 / element_bytes;
   const int64_t burst_num = cols / elements_per_c0;
   const int64_t burst_len = rows;
