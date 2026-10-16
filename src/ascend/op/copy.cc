@@ -40,6 +40,125 @@ bool IsDMACopy(const CopyNode &op) {
   return GetDMAPath(op.src, op.dst) != DMAPath::kNone;
 }
 
+// Describe physical ND/NZ strides for the existing MTE copy planner.
+StridedLayout FP8UBToL1Layout(const Buffer &buffer, const Array<Range> &ranges,
+                              const Optional<Layout> &layout,
+                              arith::Analyzer *analyzer) {
+  auto I = [](int64_t v) { return make_const(DataType::Int(32), v); };
+  ICHECK(is_zero(buffer->elem_offset))
+      << "FP8 UB->L1 copy requires a zero-offset buffer; got elem_offset="
+      << buffer->elem_offset << ". Use a region on the allocation buffer.";
+  if (!layout.defined() ||
+      layout.value()->IsEqual(makeAscendNDLayout(buffer).get())) {
+    return StridedLayout::FromBufferRange(buffer, ranges, 8);
+  }
+  bool compact = IsAscendCompactNZLayout(layout.value(), buffer);
+  AscendFractalLayoutInfo info;
+  bool major_k = IsAscendFractalLayout(layout.value()) &&
+                 TryExtractAscendFractalLayout(layout.value(), buffer, &info) &&
+                 info.kind == AscendFractalKind::kMajorK;
+  ICHECK(compact || major_k)
+      << "FP8 UB->L1 copy expects compact NZ or MajorK NZ, got layout "
+      << layout.value() << " for " << buffer->name
+      << ". Prepare matching NZ layouts before copying.";
+  ICHECK(buffer->strides.empty())
+      << "FP8 NZ UB->L1 copy does not support explicit buffer strides; got "
+      << buffer->strides << ". Express physical gaps through the NZ shape.";
+  size_t ndim = ranges.size();
+  ICHECK_GE(ndim, 2U);
+  for (size_t i = 0; i + 2 < ndim; ++i) {
+    ICHECK(analyzer->CanProveEqual(ranges[i]->extent, I(1)))
+        << "FP8 NZ UB->L1 copy expects one matrix per instruction; got "
+        << ranges << ". Loop over leading dimensions.";
+  }
+  const Range &row = ranges[ndim - 2];
+  const Range &col = ranges[ndim - 1];
+  ICHECK(analyzer->CanProveEqual(FloorMod(col->min, I(32)), I(0)) &&
+         analyzer->CanProveEqual(FloorMod(col->extent, I(32)), I(0)))
+      << "FP8 NZ UB->L1 copy requires whole 32-element column groups; got "
+      << col << ". Use C0-aligned column regions.";
+  // NZ modes are innermost-first: C0 elements, rows, then column groups.
+  // Group pitch uses the allocation height, including padding.
+  PrimExpr physical_rows =
+      compact ? buffer->shape[ndim - 2] : info.outer1 * I(16);
+  StridedLayout result;
+  result.elem_bits = 8;
+  // The region origin is carried by the access pointers and remapped later
+  // by LowerTileOp; only relative strides are needed here.
+  result.offset = I(0);
+  result.modes = {{I(32), I(1), -1},
+                  {row->extent, I(32), -1},
+                  {FloorDiv(col->extent, I(32)), physical_rows * I(32), -1}};
+  return result;
+}
+
+// Lower an E4M3 UB->L1 copy without dtype conversion or ND/NZ reordering.
+PrimExpr LowerFP8UBToL1(const AscendCopyNode &op, const LowerArgs &args,
+                        const Array<Range> &src_range,
+                        const Array<Range> &dst_range, PrimExpr src_ptr,
+                        PrimExpr dst_ptr, arith::Analyzer *analyzer) {
+  auto I = [](int64_t v) { return make_const(DataType::Int(32), v); };
+  ICHECK(op.src->dtype == op.dst->dtype && op.src->dtype.lanes() == 1 &&
+         !op.transpose && !op.nd2nz)
+      << "FP8 UB->L1 copy requires identical scalar dtypes and no transpose; "
+      << "got " << op.src->dtype << " -> " << op.dst->dtype
+      << ", transpose=" << op.transpose << ". Convert or reorder in UB first.";
+  auto src_layout = FindLayoutForBuffer(args.layout_map, op.src);
+  auto dst_layout = FindLayoutForBuffer(args.layout_map, op.dst);
+  auto is_nd = [&](const Optional<Layout> &layout, const Buffer &buffer) {
+    return !layout.defined() ||
+           layout.value()->IsEqual(makeAscendNDLayout(buffer).get());
+  };
+  bool src_nd = is_nd(src_layout, op.src);
+  bool dst_nd = is_nd(dst_layout, op.dst);
+  ICHECK(src_nd == dst_nd)
+      << "FP8 UB->L1 copy cannot convert ND/NZ layouts; got ND source="
+      << src_nd << ", ND destination=" << dst_nd
+      << ". Prepare NZ in UB before copying to NZ L1.";
+  auto src = FP8UBToL1Layout(op.src, src_range, src_layout, analyzer);
+  auto dst = FP8UBToL1Layout(op.dst, dst_range, dst_layout, analyzer);
+  if (!src_nd) {
+    for (int axis = 1; axis <= 2; ++axis) {
+      ICHECK(
+          analyzer->CanProveEqual(src_range[src_range.size() - axis]->extent,
+                                  dst_range[dst_range.size() - axis]->extent))
+          << "FP8 NZ UB->L1 copy requires matching logical rows and columns; "
+          << "got " << src_range << " -> " << dst_range << ".";
+    }
+  }
+  MTECopy2D plan = PlanMTECopy(src, dst, analyzer);
+  // FP8 elements are one byte. Convert burst lengths and end-to-start gaps
+  // to the 32-byte units required by UB->L1 DMA.
+  auto blocks = [&](PrimExpr bytes, const char *name) {
+    ICHECK(analyzer->CanProveEqual(FloorMod(bytes, I(32)), I(0)))
+        << "FP8 UB->L1 copy requires 32-byte aligned " << name << ", got "
+        << bytes << " bytes. Align the region and physical pitch to 32 bytes.";
+    return analyzer->Simplify(FloorDiv(bytes, I(32)));
+  };
+  if (src_nd) {
+    blocks(src.offset, "source offset");
+    blocks(dst.offset, "destination offset");
+  }
+  PrimExpr length = blocks(plan.row_elems, "burst length");
+  PrimExpr src_gap =
+      blocks(plan.src_stride_elems - plan.row_elems, "source gap");
+  PrimExpr dst_gap =
+      blocks(plan.dst_stride_elems - plan.row_elems, "destination gap");
+  auto bounded = [&](PrimExpr value, int lo, int hi, const char *name) {
+    ICHECK(analyzer->CanProve(value >= I(lo)) &&
+           analyzer->CanProve(value <= I(hi)))
+        << "FP8 UB->L1 copy requires " << name << " in [" << lo << ", " << hi
+        << "], got " << value
+        << ". Bound dynamic extents or split the copy into smaller regions.";
+  };
+  bounded(plan.n_rows, 1, 4095, "burst count");
+  bounded(length, 1, 65535, "burst length");
+  bounded(src_gap, 0, 65535, "source gap");
+  bounded(dst_gap, 0, 65535, "destination gap");
+  return Call(DataType::Void(), ascend_copy_ubuf_to_cbuf(),
+              {dst_ptr, src_ptr, I(0), plan.n_rows, length, src_gap, dst_gap});
+}
+
 bool IsInsideSimtVF(const LowerArgs &T) {
   // A SimtVF region binds a real threadIdx Var named "simtvf*"; other contexts
   // pass either a different thread Var or the constant-0 logical index.
@@ -616,50 +735,58 @@ Stmt LowerDMACopy(const AscendCopyNode &op, const LowerArgs &T,
                  zero,   // broadcast_en
                  zero}); // NZ2DN_en
   } else if (dma_path == DMAPath::kUBToL1) {
-    ICHECK(!op.nd2nz)
-        << "Ascend nd2nz UB->L1 copy must be emitted directly from the Python "
-           "frontend (tilelang/language/copy_op.py); it should never reach "
-           "tl.tileop.copy lowering. This indicates the Python bypass was not "
-           "taken; check the call site.";
-    ICHECK_EQ(op.src->dtype.bits(), op.dst->dtype.bits())
-        << "Ascend raw UB->L1 copy cannot convert element widths, got source "
-        << op.src->dtype << " and destination " << op.dst->dtype << ".";
-    StridedLayout src_layout =
-        StridedLayout::FromBufferRange(op.src, src_range, elem_bits)
-            .Coalesce(analyzer);
-    StridedLayout dst_layout =
-        StridedLayout::FromBufferRange(op.dst, dst_range, op.dst->dtype.bits())
-            .Coalesce(analyzer);
-    ICHECK_EQ(src_layout.modes.size(), 1U)
-        << "Ascend raw UB->L1 copy requires a contiguous source region; got "
-        << src_layout.modes.size() << " modes after coalescing for buffer "
-        << op.src->name << " shape " << op.src->shape << " ranges " << src_range
-        << ". Strided UB->L1 copies are not yet supported.";
-    ICHECK_EQ(dst_layout.modes.size(), 1U)
-        << "Ascend raw UB->L1 copy requires a contiguous destination region; "
-        << "got " << dst_layout.modes.size()
-        << " modes after coalescing for buffer " << op.dst->name << " shape "
-        << op.dst->shape << " ranges " << dst_range
-        << ". Strided UB->L1 copies are not yet supported.";
-    bool element_count_mismatch = analyzer->CanProve(src_layout.modes[0].size !=
-                                                     dst_layout.modes[0].size);
-    ICHECK(!element_count_mismatch)
-        << "Ascend raw UB->L1 copy requires source and destination regions "
-           "with the same element count, got source "
-        << src_layout.modes[0].size << " and destination "
-        << dst_layout.modes[0].size << ".";
-    PrimExpr raw_total_bytes =
-        AscendMTEBytesFromElements(src_layout.modes[0].size, elem_bits);
-    TVM_FFI_CHECK(
-        analyzer->CanProveEqual(FloorMod(raw_total_bytes, I(32)), I(0)),
-        ValueError)
-        << "Ascend raw UB->L1 copy requires a payload that is a multiple of "
-           "32 bytes, but got "
-        << raw_total_bytes << " bytes from source buffer " << op.src->name
-        << " ranges " << src_range << ".";
-    PrimExpr n_burst_val = raw_total_bytes / I(32);
-    call = Call(DataType::Void(), ascend_copy_ubuf_to_cbuf(),
-                {dst_ptr, src_ptr, zero, n_burst_val, I(1), zero, zero});
+    if (op.src->dtype.is_float8_e4m3fn()) {
+      With<arith::ConstraintContext> constraint(analyzer, has_data);
+      call = LowerFP8UBToL1(op, T, src_range, dst_range, src_ptr, dst_ptr,
+                            analyzer);
+    } else {
+      ICHECK(!op.nd2nz)
+          << "Ascend nd2nz UB->L1 copy must be emitted directly from the "
+             "Python "
+             "frontend (tilelang/language/copy_op.py); it should never reach "
+             "tl.tileop.copy lowering. This indicates the Python bypass was "
+             "not "
+             "taken; check the call site.";
+      ICHECK_EQ(op.src->dtype.bits(), op.dst->dtype.bits())
+          << "Ascend raw UB->L1 copy cannot convert element widths, got source "
+          << op.src->dtype << " and destination " << op.dst->dtype << ".";
+      StridedLayout src_layout =
+          StridedLayout::FromBufferRange(op.src, src_range, elem_bits)
+              .Coalesce(analyzer);
+      StridedLayout dst_layout = StridedLayout::FromBufferRange(
+                                     op.dst, dst_range, op.dst->dtype.bits())
+                                     .Coalesce(analyzer);
+      ICHECK_EQ(src_layout.modes.size(), 1U)
+          << "Ascend raw UB->L1 copy requires a contiguous source region; got "
+          << src_layout.modes.size() << " modes after coalescing for buffer "
+          << op.src->name << " shape " << op.src->shape << " ranges "
+          << src_range << ". Strided UB->L1 copies are not yet supported.";
+      ICHECK_EQ(dst_layout.modes.size(), 1U)
+          << "Ascend raw UB->L1 copy requires a contiguous destination region; "
+          << "got " << dst_layout.modes.size()
+          << " modes after coalescing for buffer " << op.dst->name << " shape "
+          << op.dst->shape << " ranges " << dst_range
+          << ". Strided UB->L1 copies are not yet supported.";
+      bool element_count_mismatch = analyzer->CanProve(
+          src_layout.modes[0].size != dst_layout.modes[0].size);
+      ICHECK(!element_count_mismatch)
+          << "Ascend raw UB->L1 copy requires source and destination regions "
+             "with the same element count, got source "
+          << src_layout.modes[0].size << " and destination "
+          << dst_layout.modes[0].size << ".";
+      PrimExpr raw_total_bytes =
+          AscendMTEBytesFromElements(src_layout.modes[0].size, elem_bits);
+      TVM_FFI_CHECK(
+          analyzer->CanProveEqual(FloorMod(raw_total_bytes, I(32)), I(0)),
+          ValueError)
+          << "Ascend raw UB->L1 copy requires a payload that is a multiple of "
+             "32 bytes, but got "
+          << raw_total_bytes << " bytes from source buffer " << op.src->name
+          << " ranges " << src_range << ".";
+      PrimExpr n_burst_val = raw_total_bytes / I(32);
+      call = Call(DataType::Void(), ascend_copy_ubuf_to_cbuf(),
+                  {dst_ptr, src_ptr, zero, n_burst_val, I(1), zero, zero});
+    }
   } else if (dma_path == DMAPath::kL0CToGM) {
     StridedLayout src_layout = NormalizeTrailingMTE2DLayout(
         op.src, src_range, analyzer, "Ascend L0C->GM source");

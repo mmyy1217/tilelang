@@ -356,6 +356,44 @@ def _estimate_copy_metadata(program, rewrite_dual_copy=False):
     return list(zip(metadata["latency"], metadata["ii"]))
 
 
+def _nd2nz_cost(dtype, c_type, cols, scatter):
+    @T.prim_func
+    def main():
+        with T.Kernel(1):
+            src = T.alloc_shared((33 * cols,), dtype)
+            nz = T.alloc_shared((33 * cols,), dtype)
+            dst = T.alloc_l1((32 * cols,), dtype)
+            if scatter:
+                T.evaluate(
+                    tvm.tirx.Call(
+                        "void",
+                        tvm.ir.Op.get("tl.ascend_nd2nz_scatter"),
+                        [
+                            T.access_ptr(src[0], "r", extent=32 * cols),
+                            T.access_ptr(nz[0], "w", extent=33 * cols),
+                            T.int32(32),
+                            T.int32(cols),
+                            tvm.tirx.StringImm(c_type),
+                            tvm.tirx.StringImm(c_type),
+                        ],
+                    )
+                )
+            else:
+                T.ascend_nd2nz_post_copy(
+                    T.access_ptr(dst[0], "w", extent=32 * cols), T.access_ptr(src[0], "r", extent=33 * cols), 32, cols, 32, c_type
+                )
+
+    return _estimate_copy_metadata(main)
+
+
+@pytest.mark.parametrize("scatter", [False, True])
+def test_fp8_nd2nz_cost_uses_byte_width(scatter):
+    dtype, c_type = "float8_e4m3fn", "fp8_e4_t"
+    # Equal bytes and vector passes must retain the same cost across element widths.
+    assert _nd2nz_cost(dtype, c_type, 256, scatter) == _nd2nz_cost("float16", "half", 128, scatter)
+    assert _nd2nz_cost(dtype, c_type, 512, scatter)[0][0] > _nd2nz_cost(dtype, c_type, 256, scatter)[0][0]
+
+
 def test_estimate_latency_annotates_all_materialized_tasks():
     mod = ascend_transform.EstimateLatency()(_materialize_schedule_units(_bind_target(_make_program())))
     metadata = _collect_task_metadata(mod)

@@ -12,6 +12,7 @@ Inputs, reference computations and correctness checks run on the NPU.
 | [Vector addition](example_vecadd.py) | SIMT and explicit SIMD with pipelined data movement |
 | [RMSNorm](example_rmsnorm.py) | SIMT fragments, reduction and pipelined row processing |
 | [FP8 quantization](example_per_token_cast_to_fp8.py) | The same group-wise quantization in SIMT and explicit SIMD |
+| [FP8 ND→NZ GEMM](example_fp8_nd2nz_gemm.py) | Automatic E4M3 ND-to-NZ conversion from UB to L1, with regular and dual copies |
 
 For advanced GEMM implementations and tuning, see [deepgemm](deepgemm).
 Attention kernels are in [flash_attention](flash_attention/README.md).
@@ -40,7 +41,18 @@ python examples/ascend/example_per_token_cast_to_fp8.py
 python examples/ascend/example_per_token_cast_to_fp8.py --mode simd
 python examples/ascend/example_rmsnorm.py --no-bench
 python -m pytest examples/ascend/test_rmsnorm.py -q
+python examples/ascend/example_fp8_nd2nz_gemm.py --no-bench
+python examples/ascend/example_fp8_nd2nz_gemm.py --dual-copy
+python -m pytest examples/ascend/test_fp8_nd2nz_gemm.py -q
 ```
+
+The FP8 ND-to-NZ example targets AscendC and uses a single `32×288` tile to show the layout conversion,
+data movement, and synchronization inserted for `T.copy`.
+PTO does not support this conversion, so its CI run skips the example tests.
+The reported latency is for a single-tile GEMM and does not measure large-matrix throughput or peak DMA bandwidth.
+Regression coverage for E4M3 tails, explicit NZ layouts, and A/B operands is in
+`testing/ascend/language/test_tilelang_ascend_nd2nz_scatter.py`
+and `testing/ascend/layout/test_tilelang_ascend_fp8_nd2nz_ub2l1.py`.
 
 Each top-level `example_<name>.py` has one `test_<name>.py`. Correctness tests use
 smaller inputs than performance runs. Feature-level and compiler regressions

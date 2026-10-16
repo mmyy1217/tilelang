@@ -1645,7 +1645,8 @@ void CodeGenTileLangAscend::EmitNd2NzPostCopy_(const CallNode *op) {
   const int64_t full_rows = GetIntImmArg(op, 4, kIntrinsic, "full_rows");
   const std::string dst_dtype = GetStringImmArg(op, 5, kIntrinsic, "dst_dtype");
 
-  const int64_t element_bytes = dst_dtype == "float" ? 4 : 2;
+  const int64_t element_bytes =
+      dst_dtype == "fp8_e4_t" ? 1 : (dst_dtype == "float" ? 4 : 2);
   const int64_t elements_per_c0 = 32 / element_bytes;
   const int64_t burst_num = cols / elements_per_c0;
   const int64_t burst_len = rows;

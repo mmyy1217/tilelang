@@ -130,3 +130,21 @@ def test_nd2nz_scatter(sd, dd, inside_vf):
     input_cast = input_gm.to(dtype=dd)
     output_back = output_gm.view(COLS // frac_len, ROWS + 1, frac_len)[:, :-1, :].permute(1, 0, 2).reshape(ROWS, COLS)
     assert torch.equal(input_cast, output_back), f"sd={sd} dd={dd}"
+
+
+@tilelang.testing.requires_ascend
+@pytest.mark.parametrize("cols", [32, 96, 256, 288, 512, 544, 608])
+@pytest.mark.parametrize("inside_vf", [False, True])
+def test_fp8_nd2nz_scatter_preserves_bits(cols, inside_vf):
+    dtype = torch.float8_e4m3fn
+    rows = 32
+    # Include every encoding, including NaNs and signed zero: this is a permutation.
+    bits = torch.randint(0, 256, (rows * cols,), dtype=torch.uint8, generator=torch.Generator().manual_seed(31))
+    bits[:256] = torch.arange(256, dtype=torch.uint8)
+    bits = bits.reshape(rows, cols)
+    kernel = tilelang.compile(
+        nd2nz_scatter_test(dtype, dtype, rows, cols, inside_vf), target="ascend", out_idx=-1, execution_backend="tvm_ffi"
+    )
+    output = kernel(bits.view(dtype).npu()).cpu().view(torch.uint8)
+    unpacked = output.reshape(cols // 32, rows + 1, 32)[:, :rows, :].permute(1, 0, 2).reshape(rows, cols)
+    torch.testing.assert_close(unpacked, bits, rtol=0, atol=0)

@@ -39,9 +39,12 @@ std::string Nd2NzDTypeName(DataType dtype) {
     return "half";
   if (dtype.is_float() && dtype.bits() == 32)
     return "float";
+  if (dtype.is_float8_e4m3fn())
+    return "fp8_e4_t";
   TVM_FFI_THROW(ValueError)
       << "Unsupported nd2nz dtype: " << dtype
-      << ". The UB scatter supports only float16/bfloat16/float32; add a "
+      << ". The UB scatter supports only float16/bfloat16/float32/"
+         "float8_e4m3fn; add a "
          "template specialization in src/tl_templates/ascend/nd2nz_copy.h "
          "to extend it.";
   return "";
@@ -377,6 +380,10 @@ private:
       return std::nullopt;
     }
     bool src_is_nz = IsNZBuffer(copy.src);
+    if (src_is_nz && copy.src->dtype.is_float8_e4m3fn()) {
+      // Preserve the logical copy for scheduling and physical DMA planning.
+      return std::nullopt;
+    }
 
     size_t dst_ndim = copy.dst_range.size();
     PrimExpr rows = copy.dst_range[dst_ndim - 2]->extent;
@@ -407,6 +414,52 @@ private:
             << copy.src->dtype << " -> " << copy.dst->dtype << ")";
       }
       return make_post_copy(src_ptr);
+    }
+
+    ValidateScatterTemplate(copy.src, copy.dst,
+                            RequireStaticInt(rows, "UB ND->NZ scatter rows"),
+                            RequireStaticInt(cols, "UB ND->NZ scatter cols"));
+    if (copy.src->dtype.is_float8_e4m3fn()) {
+      size_t src_ndim = copy.src_range.size();
+      if (src_ndim < 2 || HasPhysicalLayout(copy.src) ||
+          !HasCompactTrailingMatrix(copy.src) ||
+          !analyzer_->CanProveEqual(copy.src_range[src_ndim - 1]->min, 0) ||
+          !analyzer_->CanProveEqual(copy.src->shape.back(), cols) ||
+          !analyzer_->CanProveEqual(copy.src_range[src_ndim - 1]->extent,
+                                    cols) ||
+          !analyzer_->CanProveEqual(copy.src_range[src_ndim - 2]->extent,
+                                    rows)) {
+        TVM_FFI_THROW(ValueError)
+            << "FP8 UB ND->NZ requires a compact ND source covering full rows "
+               "with matching source/destination extents.";
+      }
+      for (size_t i = 0; i + 2 < src_ndim; ++i) {
+        if (!analyzer_->CanProveEqual(copy.src_range[i]->extent, 1)) {
+          TVM_FFI_THROW(ValueError)
+              << "FP8 UB ND->NZ source leading region extents must all be 1.";
+        }
+      }
+      if (!HasAlignedScatterBase(copy.src, copy.src_range)) {
+        TVM_FFI_THROW(ValueError)
+            << "FP8 UB ND->NZ requires a 32-byte-aligned source address.";
+      }
+      if (!IsCanonicalNZLayout(LayoutFor(copy.dst).value(), copy.dst)) {
+        TVM_FFI_THROW(ValueError)
+            << "FP8 UB ND->NZ requires a canonical NZ L1 destination.";
+      }
+      for (size_t i = 0; i + 2 < dst_ndim; ++i) {
+        if (!analyzer_->CanProveEqual(copy.dst_range[i]->extent, 1)) {
+          TVM_FFI_THROW(ValueError) << "FP8 UB ND->NZ destination leading "
+                                       "region extents must all be 1.";
+        }
+      }
+      if (RequireStaticInt(full_rows, "FP8 NZ full rows") % 16 != 0 ||
+          !analyzer_->CanProveEqual(
+              FloorMod(copy.dst_range[dst_ndim - 1]->min, 32), 0)) {
+        TVM_FFI_THROW(ValueError)
+            << "FP8 UB ND->NZ requires an L1 row extent divisible by 16 "
+               "and a column offset divisible by 32.";
+      }
     }
 
     const int64_t *cols_i = as_const_int(cols);

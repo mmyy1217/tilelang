@@ -717,6 +717,8 @@ private:
           return 4;
         if (dtype && (dtype->value == "half" || dtype->value == "bfloat16_t"))
           return 2;
+        if (dtype && dtype->value == "fp8_e4_t")
+          return 1;
         return 0;
       };
       if (rows && cols && rows->value > 0 && cols->value > 0 &&

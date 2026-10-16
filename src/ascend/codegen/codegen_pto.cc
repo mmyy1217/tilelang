@@ -4529,6 +4529,10 @@ void CodeGenTileLangPTO::EmitAscendNd2NzPostCopy(const CallNode *op) {
   int64_t full_rows = ConstArgDim(op, 4, "full_rows");
   std::string dst_dtype = Downcast<StringImm>(op->args[5])->value;
 
+  ICHECK(dst_dtype == "float" || dst_dtype == "half" ||
+         dst_dtype == "bfloat16_t")
+      << "PTO ND->NZ post-copy does not support " << dst_dtype;
+
   int elem_bytes = (dst_dtype == "float") ? 4 : 2;
   int elems_perC0 = 32 / elem_bytes;
   int64_t burst_num = cols / elems_perC0;
@@ -4554,6 +4558,10 @@ void CodeGenTileLangPTO::EmitAscendNd2NzScatter(const CallNode *op) {
   int64_t cols = ConstArgDim(op, 3, "cols");
   std::string dst_dtype = Downcast<StringImm>(op->args[4])->value;
   std::string src_dtype = Downcast<StringImm>(op->args[5])->value;
+
+  ICHECK(src_dtype == "float" || src_dtype == "half" ||
+         src_dtype == "bfloat16_t")
+      << "PTO ND->NZ scatter does not support " << src_dtype;
 
   ICHECK(rows % 16 == 0) << "PTO nd2nz_scatter requires ROWS % 16 == 0, got "
                          << rows;

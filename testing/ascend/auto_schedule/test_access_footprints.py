@@ -627,13 +627,14 @@ def test_nd2nz_scatter_source_can_alias_a_later_ub_copy_destination():
     assert ("other", "src") in _insert_sync_alias_pairs(main)
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float16"])
+@pytest.mark.parametrize("dtype", ["float32", "float16", "float8_e4m3fn"])
 @pytest.mark.parametrize("footprint", ["base", "short", "exact", "padded"])
 def test_nd2nz_post_copy_keeps_the_last_required_element_live(dtype, footprint):
-    cols = 16 if dtype == "float32" else 32
-    required = 24 if dtype == "float32" else 48
+    element_bytes = {"float32": 4, "float16": 2, "float8_e4m3fn": 1}[dtype]
+    cols = 64 // element_bytes
+    required = 96 // element_bytes
     extent = {"base": 1, "short": required - 1, "exact": required, "padded": 2 * cols}[footprint]
-    dtype_name = "float" if dtype == "float32" else "half"
+    dtype_name = {"float32": "float", "float16": "half", "float8_e4m3fn": "fp8_e4_t"}[dtype]
 
     @T.prim_func
     def main(out: T.Tensor((1,), dtype)):

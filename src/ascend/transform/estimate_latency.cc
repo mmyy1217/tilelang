@@ -1209,7 +1209,8 @@ private:
       ICHECK_GT(*rows, 0);
       ICHECK_GT(*cols, 0);
       ICHECK(src_dtype->value == "float" || src_dtype->value == "half" ||
-             src_dtype->value == "bfloat16_t");
+             src_dtype->value == "bfloat16_t" ||
+             src_dtype->value == "fp8_e4_t");
 
       const AscendLatencyParams::Nd2NzLatencyParams *profile =
           &params->nd2nz_same_dtype;
@@ -1225,7 +1226,9 @@ private:
         }
       }
 
-      int64_t vector_elements = src_dtype->value == "float" ? 64 : 128;
+      int64_t vector_elements = (src_dtype->value == "fp8_e4_t")
+                                    ? 256
+                                    : (src_dtype->value == "float" ? 64 : 128);
       int64_t passes = *cols / vector_elements + (*cols % vector_elements != 0);
       int64_t row_iterations =
           CheckedSerialTaskMultiply(*rows, passes, "ND->NZ row iterations");
@@ -1596,7 +1599,8 @@ private:
         << "tl.ascend_nd2nz_post_copy expects 6 arguments";
     const auto *dtype = op->args[5].as<StringImmNode>();
     ICHECK(dtype) << "tl.ascend_nd2nz_post_copy dtype must be a StringImm";
-    int64_t element_bytes = dtype->value == "float" ? 4 : 2;
+    int64_t element_bytes =
+        dtype->value == "fp8_e4_t" ? 1 : (dtype->value == "float" ? 4 : 2);
     int64_t rows = EstimateExprUpperBound(op->args[2]);
     int64_t cols = EstimateExprUpperBound(op->args[3]);
     int64_t bytes = SafeMultiply(SafeMultiply(rows, cols), element_bytes);
