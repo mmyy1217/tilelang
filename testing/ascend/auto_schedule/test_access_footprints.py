@@ -627,13 +627,102 @@ def test_nd2nz_scatter_source_can_alias_a_later_ub_copy_destination():
     assert ("other", "src") in _insert_sync_alias_pairs(main)
 
 
-@pytest.mark.parametrize("dtype", ["float32", "float16"])
+@pytest.mark.parametrize("scatter", [False, True], ids=["post-copy", "scatter"])
+@pytest.mark.parametrize("cols", range(32, 513, 32))
+@pytest.mark.parametrize("short_extent", [False, True], ids=["bounded", "short"])
+def test_fp8_nd2nz_source_reuse_requires_a_bounded_footprint(scatter, cols, short_extent):
+    rows = 16
+    source_size = rows * cols if scatter else (rows + 1) * cols
+    extent = 1 if short_extent else source_size
+    dtype = "float8_e4m3fn"
+
+    @T.prim_func
+    def main(x: T.Tensor((source_size,), dtype), out: T.Tensor((source_size,), dtype)):
+        with T.Kernel(1):
+            src = T.alloc_shared((source_size,), dtype)
+            other = T.alloc_shared((source_size,), dtype)
+            dst = T.alloc_shared(((rows + 1) * cols,), dtype) if scatter else T.alloc_l1((rows * cols,), dtype)
+            with T.Stage(0):
+                # The GM round trip orders the old UB reader before src is filled.
+                T.copy(x, other)
+                T.copy(other, out)
+                T.copy(out, src)
+                if scatter:
+                    T.evaluate(
+                        tvm.tirx.Call(
+                            "void",
+                            tvm.ir.Op.get("tl.ascend_nd2nz_scatter"),
+                            [
+                                T.access_ptr(src[0], "r", extent=extent),
+                                T.access_ptr(dst[0], "w", extent=(rows + 1) * cols),
+                                T.int32(rows),
+                                T.int32(cols),
+                                tvm.tirx.StringImm("fp8_e4_t"),
+                                tvm.tirx.StringImm("fp8_e4_t"),
+                            ],
+                        )
+                    )
+                else:
+                    T.ascend_nd2nz_post_copy(
+                        T.access_ptr(dst[0], "w", extent=rows * cols),
+                        T.access_ptr(src[0], "r", extent=extent),
+                        rows,
+                        cols,
+                        rows,
+                        "fp8_e4_t",
+                    )
+
+    assert (("other", "src") in _insert_sync_alias_pairs(main)) == (not short_extent)
+
+
+@pytest.mark.parametrize("cols", [32, 96, 224, 256, 288, 480])
+def test_fp8_scatter_keeps_the_last_source_element_live(cols):
+    rows = 16
+    source_size = rows * cols
+    last = rows * cols - 1
+    dtype = "float8_e4m3fn"
+
+    @T.prim_func
+    def main(out: T.Tensor((1,), dtype)):
+        with T.Kernel(1):
+            src = T.alloc_shared((source_size,), dtype)
+            other = T.alloc_shared((source_size,), dtype)
+            dst = T.alloc_shared(((rows + 1) * cols,), dtype)
+            with T.Stage(0):
+                with T.Task():
+                    for i in T.serial(source_size):
+                        src[i] = T.cast(1, dtype)
+                other[last] = T.cast(2, dtype)
+                out[0] = other[last]
+                with T.Task():
+                    for i in T.serial(last):
+                        src[i] = T.cast(3, dtype)
+                T.evaluate(
+                    tvm.tirx.Call(
+                        "void",
+                        tvm.ir.Op.get("tl.ascend_nd2nz_scatter"),
+                        [
+                            T.access_ptr(src[0], "r", extent=source_size),
+                            T.access_ptr(dst[0], "w", extent=(rows + 1) * cols),
+                            T.int32(rows),
+                            T.int32(cols),
+                            tvm.tirx.StringImm("fp8_e4_t"),
+                            tvm.tirx.StringImm("fp8_e4_t"),
+                        ],
+                    )
+                )
+
+    assert ("other", "src") not in _insert_sync_alias_pairs(main)
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float16", "float8_e4m3fn"])
 @pytest.mark.parametrize("footprint", ["base", "short", "exact", "padded"])
 def test_nd2nz_post_copy_keeps_the_last_required_element_live(dtype, footprint):
-    cols = 16 if dtype == "float32" else 32
-    required = 24 if dtype == "float32" else 48
+    element_bytes = {"float32": 4, "float16": 2, "float8_e4m3fn": 1}[dtype]
+    cols = 64 // element_bytes
+    required = 96 // element_bytes
     extent = {"base": 1, "short": required - 1, "exact": required, "padded": 2 * cols}[footprint]
-    dtype_name = "float" if dtype == "float32" else "half"
+    dtype_name = {"float32": "float", "float16": "half", "float8_e4m3fn": "fp8_e4_t"}[dtype]
 
     @T.prim_func
     def main(out: T.Tensor((1,), dtype)):

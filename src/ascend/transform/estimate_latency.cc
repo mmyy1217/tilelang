@@ -1229,6 +1229,22 @@ private:
       int64_t passes = *cols / vector_elements + (*cols % vector_elements != 0);
       int64_t row_iterations =
           CheckedSerialTaskMultiply(*rows, passes, "ND->NZ row iterations");
+      if (src_dtype->value == "fp8_e4_t" && *cols % 256 != 0) {
+        int64_t tail = *cols % 256;
+        int64_t boundary_rows = 1 + (255 - tail) / *cols;
+        int64_t safe_rows =
+            tail == 32 ? 0 : std::max<int64_t>(0, *rows - boundary_rows);
+        passes = *cols / 256 + (safe_rows > 0) + tail / 32;
+        // Most rows keep vector loads; only boundary rows use block loads.
+        row_iterations = CheckedSerialTaskAdd(
+            CheckedSerialTaskMultiply(*rows, *cols / 256, "ND->NZ full rows"),
+            CheckedSerialTaskAdd(
+                safe_rows,
+                CheckedSerialTaskMultiply(*rows - safe_rows, tail / 32,
+                                          "ND->NZ boundary rows"),
+                "ND->NZ tail rows"),
+            "ND->NZ row iterations");
+      }
       int64_t row_cycles_x4 = CheckedSerialTaskMultiply(
           row_iterations, profile->row_cycles_x4, "ND->NZ row cycles");
       int64_t cycles = CheckedSerialTaskAdd(
