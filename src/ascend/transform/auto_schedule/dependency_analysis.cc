@@ -24,7 +24,9 @@
 
 #include "./dependency_analysis.h"
 #include "./task_annotations.h"
+#include "ascend/op/copy.h"
 #include "ascend/op/utils.h"
+#include "ascend/transform/attr.h"
 
 #include <algorithm>
 #include <functional>
@@ -250,6 +252,80 @@ bool RegionsMayConflict(const ConstrSet &a_ctx, const BufferRegion &a_region,
            ana.z3_prover.CanProve(any_dim_disjoint));
 }
 
+// Loop hulls fill interleaved gaps. Refine only a single 1D UB-to-GM copy;
+// unsupported tasks retain their dependency.
+Optional<BufferRegion> ExtractLoopStoreRegion(const TaskNode *task,
+                                              const Buffer &buffer) {
+  if (!task->IsPerCoreTask() || !IsGlobalBuffer(buffer) ||
+      buffer->shape.size() != 1 || buffer->dtype.bits() % 8 != 0 ||
+      (!buffer->strides.empty() && !is_one(buffer->strides[0])))
+    return std::nullopt;
+
+  Map<Var, PrimExpr> bindings;
+  std::set<const VarNode *> local_vars;
+  PostOrderVisit(task->stmt, [&](const ObjectRef &node) {
+    if (const auto *bind = node.as<BindNode>())
+      local_vars.insert(bind->var.get());
+    if (const auto *loop = node.as<ForNode>())
+      local_vars.insert(loop->loop_var.get());
+  });
+  bool valid = true, has_loop = false;
+  Optional<BufferRegion> region;
+  auto resolve = [&](const PrimExpr &expr) {
+    PrimExpr result = Substitute(expr, bindings);
+    // Mutable loads and unresolved task-local variables cannot be treated as
+    // constants shared by the two accesses being compared.
+    valid &= SideEffect(result) <= CallEffectKind::kPure &&
+             !UsesVar(result, [&](const VarNode *var) {
+               return local_vars.count(var) != 0;
+             });
+    return result;
+  };
+  PreOrderVisit(task->stmt, [&](const ObjectRef &node) {
+    if (!valid || !node.as<StmtNode>())
+      return false;
+    if (const auto *attr = node.as<AttrStmtNode>()) {
+      valid = attr->attr_key == tl::attr::kAscendPerCoreTask ||
+              attr->attr_key == tl::attr::kAscendTask ||
+              attr->attr_key == tl::attr::kScheduleUnit;
+    } else if (const auto *bind = node.as<BindNode>()) {
+      valid = !bindings.count(bind->var);
+      bindings.Set(bind->var, resolve(bind->value));
+    } else if (const auto *loop = node.as<ForNode>()) {
+      valid = loop->kind == ForKind::kSerial && loop->annotations.empty();
+      resolve(loop->min);
+      resolve(loop->extent);
+      if (loop->step.has_value())
+        resolve(loop->step.value());
+      // Fresh, unconstrained iterations prove disjointness across ALL pairs
+      // of iterations, not just matching iterations on the two subcores.
+      bindings.Set(loop->loop_var, loop->loop_var.copy_with_suffix("_copy"));
+      has_loop = true;
+    } else if (const auto *eval = node.as<EvaluateNode>()) {
+      const auto *call = eval->value.as<CallNode>();
+      valid = call && IsAscendCopyCall(call) && !region.defined();
+      if (!valid)
+        return false;
+      AscendCopy copy(call->args, call->annotations);
+      valid = IsSharedBuffer(copy->src) && copy->dst.same_as(buffer) &&
+              !copy->nd2nz && !copy->transpose && !copy->data_select;
+      for (const Range &range : copy->src_range) {
+        resolve(range->min);
+        resolve(range->extent);
+      }
+      Region ranges;
+      for (const Range &range : copy->dst_range)
+        ranges.push_back(
+            Range::FromMinExtent(resolve(range->min), resolve(range->extent)));
+      region = BufferRegion(buffer, ranges);
+    } else if (!node.as<SeqStmtNode>()) {
+      valid = false;
+    }
+    return valid;
+  });
+  return valid && has_loop ? region : Optional<BufferRegion>();
+}
+
 std::vector<DepInfo>
 AnalyzeDependencies(std::vector<IRStructure *> nodes, ControlNode *loop,
                     const BufferVersionMap &manual_buffer_versions,
@@ -388,7 +464,8 @@ AnalyzeDependencies(std::vector<IRStructure *> nodes, ControlNode *loop,
       };
 
       auto consider = [&](const std::vector<RegionAccess> &lhs_accesses,
-                          const std::vector<RegionAccess> &rhs_accesses) {
+                          const std::vector<RegionAccess> &rhs_accesses,
+                          bool both_write = false) {
         for (const RegionAccess &lhs : lhs_accesses) {
           for (const RegionAccess &rhs : rhs_accesses) {
             if (IsSharedBuffer(lhs.region->buffer) &&
@@ -416,14 +493,30 @@ AnalyzeDependencies(std::vector<IRStructure *> nodes, ControlNode *loop,
             // the scheduler chooses one physical owner order.
             if (owner_exclusion && i >= j)
               continue;
+            auto may_conflict = [&](int distance, size_t owners) {
+              auto compare = [&](const BufferRegion &a, const BufferRegion &b) {
+                return RegionsMayConflict(lhs.task->outer_ctx, a,
+                                          rhs.task->outer_ctx, b, loop,
+                                          distance, owners, root_conflicts,
+                                          lhs.task->GetL0Pitch(lhs_storage),
+                                          rhs.task->GetL0Pitch(rhs_storage));
+              };
+              if (!compare(lhs.region, rhs.region))
+                return false;
+              // Preserve explicit conflict hints and alias conservatism.
+              if (!both_write ||
+                  !ActiveConflictHints(loop, root_conflicts).empty() ||
+                  !lhs.region->buffer.same_as(rhs.region->buffer))
+                return true;
+              auto a = ExtractLoopStoreRegion(lhs.task, lhs.region->buffer);
+              auto b = ExtractLoopStoreRegion(rhs.task, rhs.region->buffer);
+              return !a.defined() || !b.defined() ||
+                     compare(a.value(), b.value());
+            };
             int manual_versions = get_manual_versions(storage);
             if (manual_versions && !owner_exclusion) {
               for (int d = (i < j ? 0 : 1); d <= manual_versions; ++d) {
-                if (RegionsMayConflict(lhs.task->outer_ctx, lhs.region,
-                                       rhs.task->outer_ctx, rhs.region, loop, d,
-                                       /*num_storage_owners=*/0, root_conflicts,
-                                       lhs.task->GetL0Pitch(lhs_storage),
-                                       rhs.task->GetL0Pitch(rhs_storage))) {
+                if (may_conflict(d, /*owners=*/0)) {
                   add_pair(storage, d, lhs.task, rhs.task);
                   break;
                 }
@@ -435,12 +528,7 @@ AnalyzeDependencies(std::vector<IRStructure *> nodes, ControlNode *loop,
                 continue;
               if (distance < 0 && loop == nullptr)
                 continue;
-              if (RegionsMayConflict(lhs.task->outer_ctx, lhs.region,
-                                     rhs.task->outer_ctx, rhs.region, loop,
-                                     distance, get_num_storage_owners(storage),
-                                     root_conflicts,
-                                     lhs.task->GetL0Pitch(lhs_storage),
-                                     rhs.task->GetL0Pitch(rhs_storage))) {
+              if (may_conflict(distance, get_num_storage_owners(storage))) {
                 add_pair(storage, owner_exclusion ? 0 : distance, lhs.task,
                          rhs.task,
                          owner_exclusion ? DependencyKind::kOwnerExclusion
@@ -452,7 +540,7 @@ AnalyzeDependencies(std::vector<IRStructure *> nodes, ControlNode *loop,
         }
       };
       consider(accesses[i].writes, accesses[j].reads);
-      consider(accesses[i].writes, accesses[j].writes);
+      consider(accesses[i].writes, accesses[j].writes, /*both_write=*/true);
       consider(accesses[i].reads, accesses[j].writes);
 
       if (i == j && nodes[i]->IsControl()) {

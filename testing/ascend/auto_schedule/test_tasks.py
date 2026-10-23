@@ -5,7 +5,7 @@ import tilelang.ascend.language as T
 from tilelang import tvm
 from tilelang.ascend import transform
 from tvm import tirx
-from testing.ascend._ir import calls, copy, kernel, nodes, region, seq, statements
+from testing.ascend._ir import calls, copy, kernel, nodes, region, schedule, seq, statements
 from testing.ascend.auto_schedule._scheduled_ir import unit
 
 
@@ -330,3 +330,91 @@ def test_fill_outside_vf_synchronizes_on_scalar_pipe(dynamic):
     after = transform.InsertSync()(before)
     for op in ("set", "wait"):
         assert len([call for call in calls(after, "tl.ascend_" + op + "_flag") if call.args[0].value == "S_MTE3"]) == 1
+
+
+@pytest.mark.parametrize("loop_role", ["producer", "consumer"])
+def test_per_core_loop_keeps_external_sync_at_group_boundary(loop_role):
+    source = tirx.decl_buffer((256,), "float32", name="source")
+    output = tirx.decl_buffer((256,), "float32", name="output")
+    ub = tirx.decl_buffer((256,), "float32", name="ub", scope="shared.dyn")
+    stage = tirx.Var("stage", "int32")
+    if loop_role == "producer":
+        operation = copy(source, ub, src_indices=[stage * 64], dst_indices=[stage * 64], src_shape=[64], dst_shape=[64])
+    else:
+        operation = copy(ub, output, src_indices=[stage * 64], dst_indices=[stage * 64], src_shape=[64], dst_shape=[64])
+    group = tirx.AttrStmt(
+        {"core_mask": 1}, "tl.ascend_per_core_task", 1, tirx.For(stage, 0, 4, tirx.ForKind.SERIAL, unit(operation, core=1).body)
+    )
+    grouped = unit(group, core=None)
+    body = seq(grouped, unit(copy(ub, output), core=1)) if loop_role == "producer" else seq(unit(copy(source, ub), core=1), grouped)
+    after = transform.InsertSync()(kernel(body, buffers=[ub], params=[source, output]))
+    events = []
+    for stmt, parents in statements(after):
+        if (
+            isinstance(stmt, tirx.Evaluate)
+            and isinstance(stmt.value, tirx.Call)
+            and stmt.value.op.name in ("tl.ascend_set_flag", "tl.ascend_wait_flag")
+            and stmt.value.args[0].value == "MTE2_MTE3"
+        ):
+            assert not any(isinstance(parent, (tirx.For, tirx.While)) for parent in parents)
+            events.append(stmt.value.op.name)
+    assert sorted(events) == ["tl.ascend_set_flag", "tl.ascend_wait_flag"]
+
+
+def _strided_store(*, dynamic=True, subcore_offset=64, stride=128, bind_indices=False):
+    num_tokens = T.dynamic("num_tokens") if dynamic else 512
+
+    @T.prim_func
+    def main(sqrsum: T.Tensor((num_tokens,), T.float32)):
+        with T.MixedKernel(1) as (bx, sid):
+            sqrsum_ub = T.alloc_shared((256,), T.float32)
+            num_valid_stages = T.ceildiv(num_tokens - sid * 64, stride)
+            with T.PerCoreTask():
+                for stage in T.Serial(num_valid_stages):
+                    begin = T.bind(stage * stride + sid * subcore_offset) if bind_indices else stage * stride + sid * subcore_offset
+                    n = T.min(num_tokens - begin, 64)
+                    T.copy(sqrsum_ub[stage * 64 : stage * 64 + n], sqrsum[begin : begin + n])
+
+    return main
+
+
+@pytest.mark.parametrize("dynamic", [False, True])
+@pytest.mark.parametrize("auto_schedule", [False, True])
+def test_interleaved_per_core_store(dynamic, auto_schedule):
+    after = schedule(_strided_store(dynamic=dynamic), auto_schedule=auto_schedule)
+    assert len(calls(after, "tl.tileop.ascend_copy")) == (2 if dynamic else 1)
+    assert not calls(after, "tl.ascend_cross_core_set_flag")
+
+
+@pytest.mark.parametrize("subcore_offset", [0, 32, 63, 65, 128])
+def test_overlapping_per_core_store_is_rejected(subcore_offset):
+    with pytest.raises(tvm.error.InternalError, match="does not support synchronization between AIV0 and AIV1"):
+        schedule(_strided_store(subcore_offset=subcore_offset), auto_schedule=False)
+
+
+@pytest.mark.parametrize("extra_copy", [False, True])
+def test_explicit_conflict_or_extra_store_is_not_discarded(extra_copy):
+    num_tokens = T.dynamic("num_tokens")
+
+    @T.prim_func
+    def main(output: T.Tensor((num_tokens,), T.float32)):
+        with T.MixedKernel(1) as (bx, sid):
+            ub = T.alloc_shared((64,), T.float32)
+            if not extra_copy:
+                T.assume_conflict(output, output, cross=False)
+            with T.PerCoreTask():
+                for i in T.Serial(T.ceildiv(num_tokens - sid * 64, 128)):
+                    T.copy(ub, output[i * 128 + sid * 64 : i * 128 + sid * 64 + 64])
+                    if extra_copy:
+                        T.copy(ub, output[:64])
+
+    with pytest.raises(tvm.error.InternalError, match="does not support synchronization between AIV0 and AIV1"):
+        schedule(main, auto_schedule=False)
+
+
+@pytest.mark.parametrize("auto_schedule", [False, True])
+def test_interleaved_store_with_preserved_bind(auto_schedule):
+    with tvm.transform.PassContext(config={"tl.Simplify": {"enable_simplify_let_inline": False}}):
+        after = schedule(_strided_store(bind_indices=True), auto_schedule=auto_schedule)
+    assert len(calls(after, "tl.tileop.ascend_copy")) == 2
+    assert not calls(after, "tl.ascend_cross_core_set_flag")

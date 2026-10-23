@@ -2373,7 +2373,12 @@ void InsertStatement(IRStructure *node, Stmt stmt, bool at_beginning,
       // Projection can make a PerCoreTask optional on a block while its
       // storage protocol remains shared. Keep wider events outside the group
       // so candidate selection cannot suppress a required wait or set.
-      at_candidate = GuardImplies(sync_guard, task_guard, outer_ctx);
+      bool contains_loop = ContainsNode<ForNode>(task->stmt) ||
+                           ContainsNode<WhileNode>(task->stmt);
+      // Group events execute once. Moving them into a loop would repeat
+      // waits or sets without repeating the matching external event.
+      at_candidate =
+          !contains_loop && GuardImplies(sync_guard, task_guard, outer_ctx);
       elide_guard =
           at_candidate && GuardsEquivalent(sync_guard, task_guard, outer_ctx);
     }
