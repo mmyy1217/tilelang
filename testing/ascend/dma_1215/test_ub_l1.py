@@ -3,6 +3,7 @@ import torch
 import tilelang
 import tilelang.testing
 import tilelang.ascend.language as T
+from tilelang.layout import make_ascend_compact_nz_layout
 
 
 pytestmark = tilelang.testing.requires_ascend.marks()
@@ -30,6 +31,28 @@ def _check_matrix(main, rows, cols, src_dtype, dst_dtype):
     eye = torch.eye(cols, dtype=target_dtype)
     actual = tilelang.compile(main, target="ascend", out_idx=-1)(data.npu(), eye.npu())
     torch.testing.assert_close(actual.cpu(), data.to(target_dtype).float(), rtol=0, atol=0)
+
+
+def test_ub_to_l1_contiguous_nz():
+    """把 CPU 预排好的 32×32 BF16 NZ 块经 UB 原样搬到 L1。"""
+
+    @T.prim_func
+    def main(src: T.Tensor((32, 32), "bfloat16"), eye: T.Tensor((32, 32), "bfloat16"), out: T.Tensor((32, 32), "float32")):
+        with T.MixedKernel(1, sids=1):
+            ub = T.alloc_shared((32, 32), "bfloat16")
+            l1 = T.alloc_l1((32, 32), "bfloat16")
+            T.annotate_layout({ub: make_ascend_compact_nz_layout(ub)})
+            T.copy(src, ub)
+            T.copy(ub, l1)
+            _read_l1(l1, eye, out, 32, 32, "bfloat16")
+
+    rng = torch.Generator().manual_seed(1215)
+    data = torch.randint(-64, 64, (32, 32), generator=rng).to(torch.bfloat16)
+    # NZ 的两个列分形在外，块内按 16×16 连续存储。
+    packed = data.reshape(2, 16, 2, 16).permute(2, 0, 1, 3).reshape(32, 32)
+    eye = torch.eye(32, dtype=torch.bfloat16)
+    actual = tilelang.compile(main, target="ascend", out_idx=-1)(packed.npu(), eye.npu())
+    torch.testing.assert_close(actual.cpu(), data.float(), rtol=0, atol=0)
 
 
 @pytest.mark.parametrize("rows,cols,src_dtype,dst_dtype", ND2NZ_CASES)

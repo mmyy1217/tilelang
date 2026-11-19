@@ -1,4 +1,5 @@
 import pytest
+import torch
 import tilelang
 import tilelang.testing
 from tilelang.ascend import language as T
@@ -41,9 +42,6 @@ def _copy_batch_dn(source, target):
 )
 def test_batched_nd2nz_strides_and_transpose_device(dtype, rows, cols, copy_rows, copy_cols, interleaved, transpose, batch_begin, compact):
     """用单位矩阵读回每个批次，检查转置、跨步、尾块和相邻矩阵。"""
-    import torch
-
-    pytest.importorskip("torch_npu")
     source_batches = 3
     # 跨步场景在源行之间留空，有的场景还交错存放多个 batch。
     row_pitch = cols if compact else cols * 2
