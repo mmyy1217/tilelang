@@ -1,3 +1,5 @@
+"""1215 L1→L0A/B 二维矩阵转置加载（含 8/16/32-bit、FP4、尾块与 l0_pitch 拼装）。"""
+
 import pytest
 import torch
 import tilelang
@@ -32,31 +34,6 @@ def _readback_inputs(dtype, k):
     rng = torch.Generator().manual_seed(1215)
     data = torch.randint(1, 63, (k, 32), generator=rng).to(torch_dtype)
     return data, data.view(getattr(torch, dtype)), torch.eye(k, dtype=torch_dtype)
-
-
-@pytest.mark.parametrize("dtype", ["float16", "bfloat16"])
-def test_l1_to_l0_matrix(dtype):
-    """分别把两个 16×32 完整块加载到 L0A 和 L0B。"""
-
-    @T.prim_func
-    def main(a: T.Tensor((16, 32), dtype), b: T.Tensor((16, 32), dtype), out: T.Tensor((16, 16), "float32")):
-        with T.Kernel(1):
-            a_l1 = T.alloc_l1((16, 32), dtype)
-            b_l1 = T.alloc_l1((16, 32), dtype)
-            a_l0 = T.alloc_l0a((16, 32), dtype)
-            b_l0 = T.alloc_l0b((16, 32), dtype)
-            acc = T.alloc_l0c((16, 16), "float32")
-            T.copy(a, a_l1, transpose=False)
-            T.copy(b, b_l1, transpose=False)
-            T.copy(a_l1, a_l0, transpose=False)
-            T.copy(b_l1, b_l0, transpose=False)
-            T.gemm(a_l0, b_l0, acc, transpose_B=True, clear_accum=True)
-            T.copy(acc, out)
-
-    rng = torch.Generator().manual_seed(1215)
-    a = torch.randint(-4, 5, (16, 32), generator=rng).to(getattr(torch, dtype))
-    b = torch.randint(-4, 5, (16, 32), generator=rng).to(getattr(torch, dtype))
-    _check_gemm(main, a, b, a.float() @ b.float().T)
 
 
 @pytest.mark.parametrize("dtype,rows,k", [*((dtype, 32, 64) for dtype in READBACK), ("bfloat16", 24, 32), ("float32", 25, 32)])
@@ -150,3 +127,48 @@ def test_l1_to_l0_transpose_fp4(operand):
     scale = torch.full((1, 64), 0x7F7F, dtype=torch.uint16).npu()
     kernel = tilelang.compile(main, target="ascend", out_idx=-1)
     torch.testing.assert_close(kernel(pack(a), pack(b), scale).cpu(), expected, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("operand", ["l0a", "l0b"])
+def test_l1_to_l0_transpose_dst_offset_with_pitch(operand):
+    """分两次以 l0_pitch=2 向 L0A / L0B 的 [0:16, :] 和 [16:32, :] 转置拼装 (32, 32) 矩阵。"""
+    dtype = "bfloat16"
+
+    if operand == "l0a":
+        @T.prim_func
+        def main(src: T.Tensor((32, 32), dtype), eye: T.Tensor((32, 32), dtype), out: T.Tensor((32, 32), "float32")):
+            with T.Kernel(1):
+                a_l1 = T.alloc_l1((32, 32), dtype)
+                b_l1 = T.alloc_l1((32, 32), dtype)
+                a_l0 = T.alloc_l0a((32, 32), dtype)
+                b_l0 = T.alloc_l0b((32, 32), dtype)
+                acc = T.alloc_l0c((32, 32), "float32")
+                T.copy(src, a_l1, transpose=False)
+                T.copy(eye, b_l1, transpose=False)
+                T.copy(a_l1[:, 0:16], a_l0[0:16, :], transpose=True, l0_pitch=2)
+                T.copy(a_l1[:, 16:32], a_l0[16:32, :], transpose=True, l0_pitch=2)
+                T.copy(b_l1, b_l0, transpose=False)
+                T.gemm(a_l0, b_l0, acc, transpose_B=True, clear_accum=True)
+                T.copy(acc, out)
+
+        data, source, identity = _readback_inputs(dtype, k=32)
+        _check_gemm(main, source, identity, data.T)
+    else:
+        @T.prim_func
+        def main(eye: T.Tensor((32, 32), dtype), src: T.Tensor((32, 32), dtype), out: T.Tensor((32, 32), "float32")):
+            with T.Kernel(1):
+                a_l1 = T.alloc_l1((32, 32), dtype)
+                b_l1 = T.alloc_l1((32, 32), dtype)
+                a_l0 = T.alloc_l0a((32, 32), dtype)
+                b_l0 = T.alloc_l0b((32, 32), dtype)
+                acc = T.alloc_l0c((32, 32), "float32")
+                T.copy(eye, a_l1, transpose=False)
+                T.copy(src, b_l1, transpose=False)
+                T.copy(a_l1, a_l0, transpose=False)
+                T.copy(b_l1[:, 0:16], b_l0[0:16, :], transpose=True, l0_pitch=2)
+                T.copy(b_l1[:, 16:32], b_l0[16:32, :], transpose=True, l0_pitch=2)
+                T.gemm(a_l0, b_l0, acc, transpose_B=True, clear_accum=True)
+                T.copy(acc, out)
+
+        data, source, identity = _readback_inputs(dtype, k=32)
+        _check_gemm(main, identity, source, data)

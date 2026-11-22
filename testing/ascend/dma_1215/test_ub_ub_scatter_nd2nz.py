@@ -1,3 +1,5 @@
+"""1215 UB→UB 向量 Scatter ND→NZ（覆盖 FP16/BF16/FP32 同类型及 BF16↔FP32 转换）。"""
+
 import pytest
 import torch
 import tilelang
@@ -7,7 +9,6 @@ from tilelang.layout import make_ascend_compact_nz_layout
 
 
 pytestmark = tilelang.testing.requires_ascend.marks()
-
 
 ROWS = 32
 COLS = 128
@@ -33,7 +34,7 @@ def _check_scatter(main, src_dtype, dst_dtype):
     ],
 )
 def test_ub_to_ub_nd_to_nz(src_dtype, dst_dtype):
-    """只拷贝有效行，按 NZ 的物理地址顺序检查转换结果。"""
+    """只拷贝有效行，按紧凑 NZ 的物理地址顺序检查转换结果。"""
 
     @T.prim_func
     def main(src: T.Tensor((ROWS, COLS), src_dtype), out: T.Tensor((ROWS + 1, COLS), dst_dtype)):

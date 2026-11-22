@@ -1,4 +1,4 @@
-"""1215 L1→L0A/B MX 缩放因子搬运。"""
+"""1215 L1→L0A/B MX 缩放因子搬运（含源 L1 子块切片）。"""
 
 import pytest
 import torch
@@ -88,4 +88,54 @@ def test_blockscaled_l0_gemm(m, n, trans_a, trans_b, data_dtype, sf_dtype):
     sb_gm = sb.view(torch_sf_dtype)
     kernel = tilelang.compile(gemm, target="ascend", out_idx=-1)
     actual = kernel(a_gm.npu(), b_gm.npu(), sa_gm.npu(), sb_gm.npu())
+    torch.testing.assert_close(actual.cpu(), expected, rtol=1e-5, atol=1e-5)
+
+
+@tilelang.testing.requires_ascend
+@pytest.mark.parametrize("sf_dtype", ["uint16", "uint8"])
+def test_blockscaled_l0_sf_src_slice(sf_dtype):
+    """从更大的 (64, 2*sf_cols) L1 scale 矩阵按分形边界切片加载子块到 L0A/L0B MX 槽。"""
+    m, n, k = 32, 32, 128
+    pack = 1 if sf_dtype == "uint16" else 2
+    sf_cols = 2 * pack  # 对应 K=128（4 个 E8M0 = 2 个 scale pair）
+    full_sf_cols = 4 * pack  # L1 存放 256 K 的 scale，切片取中间 128 K
+
+    @T.prim_func
+    def gemm(
+        a: T.Tensor((m, k), "float8_e4m3fn"),
+        b: T.Tensor((n, k), "float8_e4m3fn"),
+        sa: T.Tensor((64, full_sf_cols), sf_dtype),
+        sb: T.Tensor((64, full_sf_cols), sf_dtype),
+        out: T.Tensor((m, n), "float32"),
+    ):
+        with T.Kernel(1):
+            a_l1 = T.alloc_l1((m, k), "float8_e4m3fn")
+            b_l1 = T.alloc_l1((n, k), "float8_e4m3fn")
+            sa_l1 = T.alloc_l1((64, full_sf_cols), sf_dtype)
+            sb_l1 = T.alloc_l1((64, full_sf_cols), sf_dtype)
+            a_l0 = T.alloc_l0a((m, k), "float8_e4m3fn")
+            b_l0 = T.alloc_l0b((n, k), "float8_e4m3fn")
+            a_sf = T.alloc_l0a_sf(a_l0, sf_dtype=sf_dtype, sf_shape=(m, sf_cols))
+            b_sf = T.alloc_l0b_sf(b_l0, sf_dtype=sf_dtype, sf_shape=(n, sf_cols))
+            acc = T.alloc_l0c((m, n), "float32")
+            T.copy(a, a_l1, transpose=False)
+            T.copy(b, b_l1, transpose=False)
+            T.copy(sa, sa_l1, transpose=False)
+            T.copy(sb, sb_l1, transpose=False)
+            T.copy(a_l1, a_l0, transpose=False)
+            T.copy(b_l1, b_l0, transpose=False)
+            T.copy(sa_l1[16 : 16 + m, pack : pack + sf_cols], a_sf, transpose=False)
+            T.copy(sb_l1[32 : 32 + n, 2 * pack : 2 * pack + sf_cols], b_sf, transpose=False)
+            T.gemm_blockscaled(a_l0, b_l0, acc, a_sf, b_sf, transpose_B=True, clear_accum=True)
+            T.copy(acc, out)
+
+    rng = torch.Generator().manual_seed(1215)
+    a_gm, a = _mx_input(m, k, dtype="float8_e4m3fn", transpose=False, rng=rng)
+    b_gm, b = _mx_input(n, k, dtype="float8_e4m3fn", transpose=False, rng=rng)
+    sa_full = torch.randint(124, 131, (64, 8), dtype=torch.uint8, generator=rng)
+    sb_full = torch.randint(124, 131, (64, 8), dtype=torch.uint8, generator=rng)
+    expected = _apply_e8m0(a, sa_full[16 : 16 + m, 2:6]) @ _apply_e8m0(b, sb_full[32 : 32 + n, 4:8]).T
+    torch_sf_dtype = getattr(torch, sf_dtype)
+    kernel = tilelang.compile(gemm, target="ascend", out_idx=-1)
+    actual = kernel(a_gm.npu(), b_gm.npu(), sa_full.view(torch_sf_dtype).npu(), sb_full.view(torch_sf_dtype).npu())
     torch.testing.assert_close(actual.cpu(), expected, rtol=1e-5, atol=1e-5)

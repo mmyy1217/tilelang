@@ -1,48 +1,46 @@
 # A5 DMA 1215 开发自测
 
-以当前 31 项 L3 特性为 1215 验收基准，按下表的 L3 顺序 review。数值用例运行 kernel 后逐元素比较设备结果与 CPU 参考。L2 Cache 用例核对生成指令中的策略枚举，覆盖 DSL 到 Ascend C API 的参数传递。
+以当前 31 项 L3 特性为 1215 验收基准，按下表的 L3 顺序一一对应独立测试文件 review。数值用例运行 kernel 后逐元素比较设备结果与 CPU 参考。L2 Cache 用例核对生成指令中的策略枚举，覆盖 DSL 到 Ascend C API 的参数传递。
 
 GM→L1 的普通 DMA dtype 包括 `int8`、`uint8`、`int16`、`uint16`、`int32`、`uint32`、`float16`、`bfloat16`、`float32` 和 `float8_e4m3fn`。1215 的 FP8 验收范围仅包含 E4M3（`float8_e4m3fn`）。Packed FP4 的设备数值用例走 ND。DN 待核实。数值用例以原 dtype 完成 DMA，再用同位宽的 Cube 支持类型做单位矩阵乘读回 L1。FP4 主用例用 blockscaled GEMM 读回。
 
-**验证记录**　A5-BLUE 上 481 个用例通过代码生成。L1→L0A/B 的 26 个组合、MX Scale 的 56 个组合、L0C→UB 保留 NZ 及 UB→L1 原样搬入通过 Bisheng 设备编译，数值结果待上卡。原有 OOB 用例在 GM→L1 实测中通过，16×64 和 32×64 各 20 个 OOB 组合通过设备编译，数值结果待上卡。
-
 ## 逐项 review
 
-M、N、K 依次为矩阵乘的行、输出列和归约维。多项特性可共用端到端测试。
+M、N、K 依次为矩阵乘的行、输出列和归约维。31 项 1215 特性各自对应独立的测试文件：
 
 | ID | 方向与特性 | 用例文件 | shape、dtype 与判据 |
 |---|---|---|---|
-| 01 | GM→L1 ND→NZ | [test_nd_to_nz](test_gm_l1.py) | 10 种普通 dtype 完整搬入 16×32，读回原矩阵。FP4 完整块见第 05 项 |
-| 02 | GM→L1 DN→NZ | [test_dn_to_nz](test_gm_l1.py) | 10 种普通 dtype，从连续 32×16 搬到 16×32，与转置参考比较 |
-| 03 | GM→L1 批量 ND/DN→NZ | [test_batch_nd_to_nz / test_batch_dn_to_nz](test_gm_l1.py) | 3 个 16×32 矩阵，覆盖紧凑批次、批次间有间隔和交错行。10 种普通 dtype 逐批读回。[另测批次尾块和相邻矩阵保护区](test_batch.py)，FP4 批量数值用例待补 |
-| 04 | GM→L1 越界尾块补零 | [test_oob_tail_padding_nd / dn](test_gm_l1.py) | 从列 96 请求完整的 16×32、16×64 或 32×64 NZ tile。覆盖仅行尾、仅列尾、双尾与整块越界。16×64 双尾用例有 31 列有效，检查有效 C0 组内剩余列及后续完整 C0 组。32×64 用例只有 4 列有效，读回确认两个行分形都补齐。10 种普通 dtype 逐元素验零，FP4 尾块数值用例待补 |
-| 05 | GM→L1 FP4 双值打包 | [test_fp4_packed_nd_to_nz](test_gm_l1.py) | M=N=16，K=256，E2M1。独立解码高低半字节，覆盖原生 packed dtype 和 INT8 字节视图 |
-| 06 | GM→L1 L2 读策略 | [test_gm_to_l1_l2_policy_nd / dn](test_gm_l1.py) | 16×32 目标，10 种普通 dtype 各走 ND 和 DN。FP4 走 16×64 ND。核对指令中的 `normal_fv`、`normal_lv`、`notalloc_clean` |
-| 07 | L1→L0A/B 二维加载 | [test_l1_to_l0_matrix](test_l0_transpose.py) | 显式把 16×32 的 FP16/BF16 矩阵加载到 L0A/B，通过 GEMM 读回 |
-| 08 | L1→L0A/B 转置加载 | [test_l1_to_l0a_transpose / test_l1_to_l0b_transpose / test_l1_to_l0_transpose_fp4](test_l0_transpose.py) | 两侧各覆盖 INT8/16/32、UINT8/16/32、FP16、BF16、FP32、FP8 E4M3、FP4 E2M1。普通 dtype 从 64×32 转置为 32×64，单位矩阵读回。L0A 另测 32×32 取 24 列（BF16）和 25 列（FP32）。FP4 走 64×64，使用单位 E8M0 缩放读回 |
-| 09 | L1→L0A/B_MX 缩放因子 | [test_blockscaled_l0_gemm](test_mx_fp4.py) | 56 组。原有 7 个形状与转置场景分别覆盖主矩阵 FP8 E4M3、打包 FP4 E2M1，以及 A/B 两侧 scale 的 `uint16`、`uint8`、`int8`、`float8_e8m0fnu`。K=128，每行 4 个 E8M0，`uint16` 每元素装两个指数，其余每元素一个。A/B 使用独立 scale，以 CPU 展开后的矩阵乘逐元素校验 |
-| 10 | L0C→GM NZ→ND | [test_l0c_to_gm_nd](test_fix_output.py) | 32×64 的 FP32 累加结果按 ND 写回，和 CPU GEMM 参考比较 |
-| 11 | L0C→GM 降精度 | [fix_output](test_fix_output.py) | 32×64，FP32→FP16/BF16，与 CPU Cast 逐元素比较 |
-| 12 | L0C→GM Atomic Add | [test_l0c_atomic_add](test_atomic.py) | 两核写同一 16×16 FP32 矩阵，预置 7，检查原值与两块 GEMM 结果之和 |
-| 13 | L0C→GM L2 写策略 | [test_l0c_to_gm_l2_policy](test_fix_output.py) | 32×64 输出，FP32→FP32/FP16/BF16 和 INT32→INT32。核对 Fixpipe 指令的 `normal_fv`、`normal_lv`、`notalloc_ci`、`notalloc_pw` |
-| 14 | L0C→UB NZ→ND | [test_l0c_to_ub_nd](test_fix_output.py) | 32×64，UB 再写回 GM 检查行列顺序 |
-| 15 | L0C→UB NZ→NZ | [test_l0c_to_ub_nz](test_fix_output.py) | 32×64 FP32，UB 显式标注 NZ，SIMT 按逻辑坐标读回并与 CPU GEMM 比较 |
-| 16 | L0C→UB 降精度 | [fix_output](test_fix_output.py) | 32×64，FP32→FP16/BF16，单目标 UB，回读后与 CPU 转换逐元素比较 |
-| 17 | L0C→UB 指定 AIV | [fix_output](test_fix_output.py) | 两个 AIV 的 UB 预填 −7，逐一指定目标，分别回读 16×16 FP32 矩阵 |
-| 18 | L0C→UB 硬件双写 | [test_l0c_to_ub_dual_m / dual_n](test_fix_output.py) | FP32 的 32×64 按 M 分成 16×64，按 N 分成 32×32，重组后比较完整矩阵 |
-| 19 | UB→L1 连续原样搬入 | [test_ub_to_l1_contiguous_nz](test_ub_l1.py) | 32×32 BF16，CPU 先排好 NZ，AIV 将整块搬入 L1，单位矩阵乘读回 |
-| 20 | UB→L1 ND→NZ | [test_ub_to_l1_nd_to_nz](test_ub_l1.py) | 32×64 FP32；32×128 FP32→BF16、BF16→FP32。单位矩阵乘读回重排结果 |
-| 21 | UB→L1 软件双写 | [test_ub_to_l1_dual_nd_to_nz](test_ub_l1.py) | 同 20，以单 AIV 和双 AIV 对照 |
-| 22 | GM→UB 连续/跨步 | [test_gm_to_ub](test_gm_ub.py) | 1×1、4×15、4×16、4×17。INT8/16/32、FP16/BF16/FP32；跨步时源行宽增加 7 元素，UB 行宽 64 |
-| 23 | GM→UB 右补齐 | [test_gm_to_ub_pad_value / data_select](test_padding.py) | FP32，2×3→2×8、2×30→2×32，检查有效列及每个填充位置。pad_value 指定 −1；data_select 复用预设的 −1 寄存器值。当前 DSL 的这条路径没有自动取源首元素的语义 |
-| 24 | GM→UB L2 读策略 | [test_gm_to_ub_l2_policy](test_gm_ub.py) | 4×16 FP32。核对对齐搬入指令的 `normal_fv`、`normal_lv`、`notalloc_clean` |
-| 25 | GM→UB 软件分半 | [test_ub_to_l1_dual_nd_to_nz](test_ub_l1.py) | 与第 21 项共用端到端用例，两个 AIV 从 GM 读入各自半块，再写回同一 L1 |
-| 26 | UB→GM 连续/跨步 | [test_ub_to_gm_preserves_guards](test_gm_ub.py) | 与 22 同形状和 dtype。UB 行宽 64，目标上下各一行、左右各八元素预填 −77，核对整个输出 |
-| 27 | UB→GM L2 写策略 | [test_ub_to_gm_l2_policy](test_gm_ub.py) | 4×16 FP32。核对对齐写回指令的 `normal_fv`、`normal_lv`、`notalloc_ci`、`notalloc_pw` |
-| 28 | UB→GM 软件分半 | [test_l0c_to_ub_dual_m / dual_n](test_fix_output.py) | 与第 18 项共用端到端用例，两个 AIV 分别沿 M 或 N 将各自的 UB 半块写回 GM |
-| 29 | UB→GM Atomic Add | [test_ub_to_gm_atomic_add](test_atomic.py) | 2×32→32，两核叠加带符号输入与非零初值。INT8/16/32、FP16/BF16/FP32 |
-| 30 | UB→GM Atomic Max/Min | [test_ub_to_gm_atomic_max / min](test_atomic.py) | 同 29，分别与三路逐元素最大、最小值比较。各 dtype 的 A5 硬件结果待验证 |
-| 31 | UB→UB Scatter ND→NZ | [test_ub_to_ub_nd_to_nz / inside_simd_vf](test_ub_scatter.py) | 32×128，FP16/BF16/FP32 同类型及 BF16↔FP32。按目标元素宽度解分形，去掉额外一行后比较逻辑矩阵 |
+| 01 | GM→L1 ND→NZ | [test_gm_l1_nd2nz.py](test_gm_l1_nd2nz.py) | 10 种普通 dtype 覆盖 16×32 整块、非 32B 对齐行步长的 (20, 37) GM 界内切片、非整分形 (13, 29) 分配与子范围写入，以及 (32, 64) L1 的分形对齐子区域写入。FP4 完整块见第 05 项 |
+| 02 | GM→L1 DN→NZ | [test_gm_l1_dn2nz.py](test_gm_l1_dn2nz.py) | 10 种普通 dtype 覆盖 32×16→16×32 整块转置、非 32B 对齐行步长的 (37, 20) GM 界内切片、非整分形 (13, 29) 分配与子范围转置写入，以及 (32, 64) L1 的分形对齐子区域转置写入 |
+| 03 | GM→L1 批量 ND/DN→NZ | [test_gm_l1_batch.py](test_gm_l1_batch.py) | 3 个 16×32 矩阵，覆盖紧凑批次、批次间有间隔和交错行，10 种普通 dtype 逐批读回；另测批次起点切片、L1 更大矩阵 pitch、批次越界跳过、行列尾块与相邻矩阵保护区，FP4 批量数值用例待补 |
+| 04 | GM→L1 越界尾块补零 | [test_gm_l1_oob.py](test_gm_l1_oob.py) | 从列 96 请求完整的 16×32、16×64 或 32×64 NZ tile，另含动态 `col_offset` 越界用例。覆盖仅行尾、仅列尾、双尾与整块越界。16×64 双尾用例有 31 列有效，检查有效 C0 组内剩余列及后续完整 C0 组。32×64 用例只有 4 列有效，读回确认两个行分形都补齐。10 种普通 dtype 逐元素验零，FP4 尾块数值用例待补 |
+| 05 | GM→L1 FP4 双值打包 | [test_gm_l1_fp4.py](test_gm_l1_fp4.py) | M=N=16，K=256，E2M1。独立解码高低半字节，覆盖原生 packed dtype、INT8 字节视图及非 C0 对齐行步长的偶数列起点界内切片 |
+| 06 | GM→L1 L2 读策略 | [test_gm_l1_l2_policy.py](test_gm_l1_l2_policy.py) | 16×32 目标，10 种普通 dtype 各走 ND 和 DN。FP4 走 16×64 ND。核对指令中的 `normal_fv`、`normal_lv`、`notalloc_clean` |
+| 07 | L1→L0A/B 二维加载 | [test_l1_l0_matrix.py](test_l1_l0_matrix.py) | L0A/B 两侧覆盖 10 种普通 dtype 及打包 FP4 的整块加载，另测 L1 分形对齐子块切片、目的 L0 非零起点 `l0_pitch` 拼装与非整分形 `(13, 29)` 逻辑 shape 加载 |
+| 08 | L1→L0A/B 转置加载 | [test_l1_l0_transpose.py](test_l1_l0_transpose.py) | 两侧各覆盖 INT8/16/32、UINT8/16/32、FP16、BF16、FP32、FP8 E4M3、FP4 E2M1。普通 dtype 从 64×32 转置为 32×64，单位矩阵读回。L0A 另测 32×32 取 24 列（BF16）和 25 列（FP32）。FP4 走 64×64，使用单位 E8M0 缩放读回；另测目的 L0 非零起点 `l0_pitch=2` 分块转置拼装 |
+| 09 | L1→L0A/B_MX 缩放因子 | [test_l1_l0_mx_sf.py](test_l1_l0_mx_sf.py) | 56 组全量组合 + 2 组源 L1 scale 子块切片。7 个形状与转置场景分别覆盖主矩阵 FP8 E4M3、打包 FP4 E2M1，以及 A/B 两侧 scale 的 `uint16`、`uint8`、`int8`、`float8_e8m0fnu`。K=128，每行 4 个 E8M0，`uint16` 每元素装两个指数，其余每元素一个。A/B 使用独立 scale，以 CPU 展开后的矩阵乘逐元素校验 |
+| 10 | L0C→GM NZ→ND | [test_l0c_gm_nd.py](test_l0c_gm_nd.py) | 32×64 的 FP32 与 INT32 累加结果按 ND 写回，覆盖整块直出、非 32B 对齐 GM 子区域写出与四周保护区、以及非整分形裁剪 `(20, 37)` + 显式 `l0_pitch=2` |
+| 11 | L0C→GM 降精度 | [test_l0c_gm_cast.py](test_l0c_gm_cast.py) | 32×64，FP32→FP16/BF16，覆盖整块写出、非 32B 对齐 GM 子区域写出与四周保护区、以及非整分形裁剪 `(20, 37)` + `l0_pitch=2` |
+| 12 | L0C→GM Atomic Add | [test_l0c_gm_atomic_add.py](test_l0c_gm_atomic_add.py) | 两核写同一 16×16 矩阵，覆盖 FP32、FP16、BF16、INT32，预置初值 7，检查原值与两块 GEMM 结果之和 |
+| 13 | L0C→GM L2 写策略 | [test_l0c_gm_l2_policy.py](test_l0c_gm_l2_policy.py) | 32×64 输出，FP32→FP32/FP16/BF16 和 INT32→INT32。核对 Fixpipe 指令的 `normal_fv`、`normal_lv`、`notalloc_ci`、`notalloc_pw` |
+| 14 | L0C→UB NZ→ND | [test_l0c_ub_nd.py](test_l0c_ub_nd.py) | 32×64 的 FP32 与 INT32 累加结果转 ND 搬入 UB，另测 32B 对齐宽行距 UB `(32, 80)` 裁剪写出 + `l0_pitch=2` |
+| 15 | L0C→UB NZ→NZ | [test_l0c_ub_nz.py](test_l0c_ub_nz.py) | 32×64 FP32 / INT32，UB 显式标注 `make_ascend_l0c_layout`，SIMT 按逻辑坐标读回；另测 16 对齐偏移子区域 `[16:48, 16:80]` |
+| 16 | L0C→UB 降精度 | [test_l0c_ub_cast.py](test_l0c_ub_cast.py) | 32×64，FP32→FP16/BF16，单目标 UB，覆盖整块及 32B 对齐宽行距 UB `(32, 80)` 切片写入 |
+| 17 | L0C→UB 指定 AIV | [test_l0c_ub_sub_blockid.py](test_l0c_ub_sub_blockid.py) | 两个 AIV 的 UB 预填 −7，逐一指定 `sub_blockid=0/1`，分别回读 16×16 FP32 矩阵验证另一侧保留保护值 |
+| 18 | L0C→UB 硬件双写 | [test_l0c_ub_dual.py](test_l0c_ub_dual.py) | 32×64 按 M 分成 16×64、按 N 分成 32×32，覆盖 FP32/INT32 的 ND 写出以及 FP32 的 NZ 保留写出 |
+| 19 | UB→L1 连续原样搬入 | [test_ub_l1_contiguous.py](test_ub_l1_contiguous.py) | 32×32，覆盖 BF16/FP16/FP32/INT8，CPU 预排紧凑 NZ，AIV 整块原样搬入 L1，单位矩阵乘读回 |
+| 20 | UB→L1 ND→NZ | [test_ub_l1_nd2nz.py](test_ub_l1_nd2nz.py) | 覆盖全部 5 种支持组合：FP16→FP16、BF16→BF16、FP32→FP32（32×64）及 FP32↔BF16（32×128），单位矩阵乘读回重排结果 |
+| 21 | UB→L1 软件双写 | [test_ub_l1_dual.py](test_ub_l1_dual.py) | 同 20，双 AIV 各自通过 `T.dual_copy` 写入共享 L1 的半块，读回完整矩阵验证 |
+| 22 | GM→UB 连续/跨步 | [test_gm_ub_copy.py](test_gm_ub_copy.py) | 覆盖 Normal 跨步（1×1、4×15、4×16、4×17，INT8/16/32、FP16/BF16/FP32，UB 行宽 64）、Compact 紧凑搬运及打包 FP4 |
+| 23 | GM→UB 右补齐 | [test_gm_ub_padding.py](test_gm_ub_padding.py) | 覆盖 INT8/16/32、FP16/BF16/FP32，`cols=3, 30` 右补齐至 32B 边界，`pad_value` 与 `data_select` 均核对有效列与每个填充位 |
+| 24 | GM→UB L2 读策略 | [test_gm_ub_l2_policy.py](test_gm_ub_l2_policy.py) | 4×32（FP32/BF16/INT8）。核对对齐搬入指令的 `normal_fv`、`normal_lv`、`notalloc_clean` |
+| 25 | GM→UB 软件分半 | [test_gm_ub_dual.py](test_gm_ub_dual.py) | 双 AIV 分别按 M（16×64）和 N（32×32）用 `T.dual_copy` 从 GM 读入各自半块（FP32/BF16）并写回校验 |
+| 26 | UB→GM 连续/跨步 | [test_ub_gm_copy.py](test_ub_gm_copy.py) | 覆盖 Normal 跨步（UB 行宽 64，目标四周预填 −77 保护区，6 种标量）及 Compact 紧凑写回 |
+| 27 | UB→GM L2 写策略 | [test_ub_gm_l2_policy.py](test_ub_gm_l2_policy.py) | 4×32（FP32/BF16/INT8）。核对对齐写回指令的 `normal_fv`、`normal_lv`、`notalloc_ci`、`notalloc_pw` |
+| 28 | UB→GM 软件分半 | [test_ub_gm_dual.py](test_ub_gm_dual.py) | 双 AIV 分别沿 M（16×64）或 N（32×32）通过 `T.dual_copy` 将各自的 UB 半块写回 GM |
+| 29 | UB→GM Atomic Add | [test_ub_gm_atomic_add.py](test_ub_gm_atomic_add.py) | 1D（2×32→32，6 种标量 dtype）与 2D 跨步子区域保护区原子累加，带符号输入与非零初值 |
+| 30 | UB→GM Atomic Max/Min | [test_ub_gm_atomic_max_min.py](test_ub_gm_atomic_max_min.py) | 2×32→32，6 种标量 dtype，分别与三路逐元素最大、最小值比较（各 dtype 的 A5 硬件结果待上卡确认） |
+| 31 | UB→UB Scatter ND→NZ | [test_ub_ub_scatter_nd2nz.py](test_ub_ub_scatter_nd2nz.py) | 32×128，FP16/BF16/FP32 同类型及 BF16↔FP32，含显式 `T.SimdVF()` 块内散列。按目标元素宽度解分形，去掉额外一行后比较逻辑矩阵 |
 
 ## 运行
 
@@ -51,7 +49,7 @@ M、N、K 依次为矩阵乘的行、输出列和归约维。多项特性可共�
 ```bash
 python -m pytest --noconftest testing/ascend/dma_1215 --collect-only -q
 python -m pytest --noconftest testing/ascend/dma_1215 -k l2_policy -v
-python -m pytest --noconftest testing/ascend/dma_1215/test_gm_l1.py -k test_oob_tail_padding -v
+python -m pytest --noconftest testing/ascend/dma_1215/test_gm_l1_oob.py -v
 python -m pytest --noconftest testing/ascend/dma_1215 -v --junitxml=/tmp/dma_1215.xml
 ```
 
