@@ -202,3 +202,45 @@ def test_batched_nd2nz_strides_and_transpose_device(dtype, rows, cols, copy_rows
     torch.npu.synchronize()
     # 连同未搬运的行列和 batch 一起检查，确认保护值保留。
     torch.testing.assert_close(actual.cpu(), expected, atol=0, rtol=0)
+
+
+@DEVICE
+@pytest.mark.parametrize("transpose", [False, True], ids=["nd", "dn"])
+def test_batch_5d_single_outer_plane(transpose):
+    """5D GM 与 4D L1 在外层维选定单平面（extent=1），仅倒数第 3 维批量搬入 3 个矩阵。"""
+    dtype = "bfloat16"
+    src_shape = (2, 2, 3, 32, 16) if transpose else (2, 2, 3, 16, 32)
+
+    @T.prim_func
+    def main(
+        src: T.Tensor(src_shape, dtype),
+        eye: T.Tensor((32, 32), dtype),
+        out: T.Tensor((3, 16, 32), "float32"),
+    ):
+        with T.Kernel(1):
+            l1 = T.alloc_l1((2, 3, 16, 32), dtype)
+            weight = T.alloc_l1((32, 32), dtype)
+            acc = T.alloc_l0c((16, 32), "float32")
+            T.copy(src[1, 0, 0:3, :, :], l1[1, 0:3, :, :], transpose=transpose)
+            T.copy(eye, weight, transpose=False)
+            for batch in T.serial(3):
+                T.gemm(l1[1, batch, :, :], weight, acc, transpose_B=True, clear_accum=True)
+                T.copy(acc, out[batch, :, :])
+
+    data = _matrix_data(src_shape, dtype)
+    expected = data[1, 0].transpose(1, 2) if transpose else data[1, 0]
+    _assert_readback(main, dtype, expected, data.npu())
+
+
+def test_batch_rejects_multi_outer_4d():
+    """4D 张量同时在两个外层维请求长度 > 1 时，单条批量 DMA 编译期直接拒绝。"""
+
+    @T.prim_func
+    def main(src: T.Tensor((2, 3, 16, 32), "float16")):
+        with T.Kernel(1):
+            l1 = T.alloc_l1((2, 3, 16, 32), "float16")
+            T.copy(src[0:2, 0:3, :, :], l1[0:2, 0:3, :, :], transpose=False)
+
+    with pytest.raises(Exception):
+        tilelang.lower(main, target="ascend")
+

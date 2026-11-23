@@ -190,3 +190,86 @@ def test_dn_to_nz_l1_subregion(dtype):
         source.view(getattr(torch, dtype)).npu(),
         poison.view(getattr(torch, dtype)).npu(),
     )
+
+
+@DEVICE
+@pytest.mark.parametrize("dtype", ["int8", "bfloat16", "float32"])
+def test_dn_to_nz_5d_gm_and_3d_l1_stage(dtype):
+    """从 5D GM 单平面切片转置搬入带流水 stage 维的 3D L1，检查写入 stage 与未写入 stage 保护区。"""
+    read_dtype, acc_dtype = _readback_dtypes(dtype)
+
+    @T.prim_func
+    def main(
+        src: T.Tensor((2, 2, 2, 37, 20), dtype),
+        poison: T.Tensor((16, 32), dtype),
+        eye: T.Tensor((32, 32), read_dtype),
+        out: T.Tensor((2, 16, 32), acc_dtype),
+    ):
+        with T.Kernel(1):
+            l1 = T.alloc_l1((2, 16, 32), dtype)
+            weight = T.alloc_l1((32, 32), read_dtype)
+            acc = T.alloc_l0c((16, 32), acc_dtype)
+            T.copy(poison, l1[0, :, :], transpose=False)
+            T.copy(poison, l1[1, :, :], transpose=False)
+            for ko in T.serial(1):
+                stage = (ko + 1) % 2
+                T.copy(src[1, 0, 1, 3:35, 2:18], l1[stage, :, :], transpose=True)
+            T.copy(eye, weight, transpose=False)
+            payload = T.view(l1, dtype=read_dtype)
+            for s in T.serial(2):
+                T.gemm(payload[s, :, :], weight, acc, transpose_B=True, clear_accum=True)
+                T.copy(acc, out[s, :, :])
+
+    source = _matrix_data((2, 2, 2, 37, 20), dtype)
+    poison = torch.full((16, 32), 7, dtype=source.dtype)
+    expected = torch.stack((poison, source[1, 0, 1, 3:35, 2:18].T))
+    _assert_readback(
+        main,
+        dtype,
+        expected,
+        source.view(getattr(torch, dtype)).npu(),
+        poison.view(getattr(torch, dtype)).npu(),
+    )
+
+
+@DEVICE
+@pytest.mark.parametrize("dtype", ["int8", "bfloat16", "float32"])
+def test_dn_to_nz_dynamic_sources(dtype):
+    """同一已编译 kernel 结合 T.dynamic 维度、分核 bx、循环 ko 与标量入参动态转置搬入 L1。"""
+    read_dtype, acc_dtype = _readback_dtypes(dtype)
+    K = T.dynamic("K")
+    M = T.dynamic("M")
+
+    @T.prim_func
+    def main(
+        src: T.Tensor((K, M), dtype),
+        eye: T.Tensor((32, 32), read_dtype),
+        row_off: T.int32,
+        col_off: T.int32,
+        out: T.Tensor((2, 16, 32), acc_dtype),
+    ):
+        with T.Kernel(2) as bx:
+            T.assume(K >= 40)
+            T.assume(M >= 40)
+            T.assume(row_off >= 0)
+            T.assume(col_off >= 0)
+            l1 = T.alloc_l1((16, 32), dtype)
+            for ko in T.serial(1):
+                k0 = ko * 32 + row_off
+                m0 = bx * 16 + col_off
+                T.copy(src[k0 : k0 + 32, m0 : m0 + 16], l1, transpose=True)
+            _read_l1(l1, eye, out[bx, :, :], 16, 32, read_dtype, acc_dtype)
+
+    identity = torch.eye(32, dtype=getattr(torch, read_dtype)).npu()
+    kernel = tilelang.compile(main, target="ascend", out_idx=-1)
+    for shape, row_off, col_off in [((53, 45), 3, 2), ((71, 64), 7, 5)]:
+        source = _matrix_data(shape, dtype)
+        actual = kernel(source.view(getattr(torch, dtype)).npu(), identity, row_off, col_off).cpu()
+        expected = torch.stack(
+            (
+                source[row_off : row_off + 32, col_off : col_off + 16].T,
+                source[row_off : row_off + 32, 16 + col_off : 32 + col_off].T,
+            )
+        )
+        torch.testing.assert_close(actual, expected.to(actual.dtype), rtol=0, atol=0)
+

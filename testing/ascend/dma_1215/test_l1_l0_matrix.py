@@ -251,3 +251,47 @@ def test_l1_to_l0_non_fractal(dtype):
     expected = torch.zeros((rows, out_cols), dtype=getattr(torch, acc_dtype))
     expected[:, :cols] = data.to(expected.dtype)
     _check_gemm(main, data.view(getattr(torch, dtype)), identity, expected)
+
+
+def test_l1_to_l0_3d_stage_and_loop_slice():
+    """3D L1 与 3D L0 通过循环变量选择流水 stage 并在 K 维按 C0 倍数步进切片加载。"""
+    dtype = "float16"
+
+    @T.prim_func
+    def main(src: T.Tensor((16, 64), dtype), eye: T.Tensor((32, 32), dtype), out: T.Tensor((2, 16, 32), "float32")):
+        with T.Kernel(1):
+            a_l1 = T.alloc_l1((2, 16, 64), dtype)
+            b_l1 = T.alloc_l1((32, 32), dtype)
+            a_l0 = T.alloc_l0a((2, 16, 32), dtype)
+            b_l0 = T.alloc_l0b((32, 32), dtype)
+            acc = T.alloc_l0c((16, 32), "float32")
+            T.copy(src, a_l1[1, :, :], transpose=False)
+            T.copy(eye, b_l1, transpose=False)
+            T.copy(b_l1, b_l0, transpose=False)
+            for ko in T.serial(2):
+                stage = ko % 2
+                T.copy(a_l1[1, :, ko * 32 : (ko + 1) * 32], a_l0[stage, :, :], transpose=False)
+                T.gemm(a_l0[stage, :, :], b_l0, acc, transpose_B=True, clear_accum=True)
+                T.copy(acc, out[ko, :, :])
+
+    data = _matrix_data((16, 64), dtype)
+    identity = torch.eye(32, dtype=torch.float16)
+    expected = torch.stack((data[:, :32], data[:, 32:64]))
+    _check_gemm(main, data, identity, expected)
+
+
+@pytest.mark.parametrize("row_start,col_start", [(1, 0), (0, 1)], ids=["unaligned-row", "unaligned-col"])
+def test_l1_to_l0_rejects_unaligned_origin(row_start, col_start):
+    """源 L1 切片起点未按 16×C0 分形边界对齐时，编译期直接报错拒绝。"""
+
+    @T.prim_func
+    def main(src: T.Tensor((32, 64), "float16")):
+        with T.Kernel(1):
+            a_l1 = T.alloc_l1((32, 64), "float16")
+            a_l0 = T.alloc_l0a((16, 32), "float16")
+            T.copy(src, a_l1, transpose=False)
+            T.copy(a_l1[row_start : row_start + 16, col_start : col_start + 32], a_l0, transpose=False)
+
+    with pytest.raises(Exception):
+        tilelang.lower(main, target="ascend")
+

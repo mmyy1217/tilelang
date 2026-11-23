@@ -76,3 +76,37 @@ def test_l0c_to_gm_cast_cropped_with_pitch(dtype):
     a, b, gemm_ref = _gemm_inputs(dtype)
     actual = tilelang.compile(main, target="ascend", out_idx=-1)(a.npu(), b.npu())
     torch.testing.assert_close(actual.cpu(), gemm_ref[:20, :37], rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("dtype", ["float16", "bfloat16"])
+def test_l0c_to_gm_cast_5d_and_dynamic(dtype):
+    """同一已编译 kernel 结合 T.dynamic 维度与标量偏移降精度写回 5D GM 单平面子区域。"""
+    M = T.dynamic("M")
+    N = T.dynamic("N")
+
+    @T.prim_func
+    def main(
+        a: T.Tensor((32, 16), "float16"),
+        b: T.Tensor((64, 16), "float16"),
+        row_off: T.int32,
+        col_off: T.int32,
+        out: T.Tensor((2, 2, 2, M, N), dtype),
+    ):
+        with T.Kernel(1):
+            T.assume(M >= 40)
+            T.assume(N >= 80)
+            T.assume(row_off >= 0)
+            T.assume(col_off >= 0)
+            acc = T.alloc_l0c((32, 64), "float32")
+            _gemm_32x64(a, b, acc)
+            T.copy(acc, out[1, 0, 1, row_off : row_off + 32, col_off : col_off + 64])
+
+    a, b, gemm_ref = _gemm_inputs(dtype)
+    kernel = tilelang.compile(main, target="ascend")
+    for shape, row_off, col_off in [((42, 83), 3, 5), ((50, 91), 7, 9)]:
+        expected = torch.full((2, 2, 2, *shape), -7.0, dtype=gemm_ref.dtype)
+        expected[1, 0, 1, row_off : row_off + 32, col_off : col_off + 64] = gemm_ref
+        out = torch.full_like(expected, -7.0).npu()
+        kernel(a.npu(), b.npu(), row_off, col_off, out)
+        torch.testing.assert_close(out.cpu(), expected, rtol=0, atol=0)
+

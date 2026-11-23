@@ -172,3 +172,19 @@ def test_l1_to_l0_transpose_dst_offset_with_pitch(operand):
 
         data, source, identity = _readback_inputs(dtype, k=32)
         _check_gemm(main, identity, source, data)
+
+
+def test_l1_to_l0_transpose_rejects_unaligned_group():
+    """FP32 (C0=8) 转置加载要求源列分形数 ceil(cols/8) 为 2 的倍数，cols=24 得 3 时编译期报错。"""
+
+    @T.prim_func
+    def main(src: T.Tensor((32, 32), "float32")):
+        with T.Kernel(1):
+            a_l1 = T.alloc_l1((32, 32), "float32")
+            a_l0 = T.alloc_l0a((24, 32), "float32")
+            T.copy(src, a_l1, transpose=False)
+            T.copy(a_l1[:, :24], a_l0, transpose=True)
+
+    with pytest.raises(Exception):
+        tilelang.lower(main, target="ascend")
+

@@ -51,3 +51,41 @@ def test_ub_to_gm_compact(dtype, rows, cols):
     source = _matrix(rows, cols, dtype)
     actual = tilelang.compile(main, target="ascend", out_idx=-1)(source.npu())
     torch.testing.assert_close(actual.cpu(), source, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("dtype", ["int8", "bfloat16", "float32"])
+def test_ub_to_gm_5d_and_dynamic_sources(dtype):
+    """3D 流水 UB 结合 T.dynamic 维度、分核 bx 与标量偏移跨步写回 5D GM 单平面子区域，核对四周保护区。"""
+    M = T.dynamic("M")
+    N = T.dynamic("N")
+
+    @T.prim_func
+    def main(
+        src: T.Tensor((2, 4, 15), dtype),
+        row_off: T.int32,
+        col_off: T.int32,
+        dst: T.Tensor((2, 2, 2, M, N), dtype),
+    ):
+        with T.Kernel(2) as bx:
+            T.assume(M >= 20)
+            T.assume(N >= 30)
+            T.assume(row_off >= 0)
+            T.assume(col_off >= 0)
+            ub = T.alloc_shared((2, 4, 64), dtype)
+            for ko in T.serial(1):
+                stage = (ko + 1) % 2
+                r0 = bx * 4 + row_off
+                c0 = ko * 15 + col_off
+                T.copy(src[bx, :, :], ub[stage, :, :15])
+                T.copy(ub[stage, :, :15], dst[1, 0, 1, r0 : r0 + 4, c0 : c0 + 15])
+
+    source = (torch.arange(2 * 4 * 15).reshape(2, 4, 15) % 61 - 30).to(getattr(torch, dtype))
+    kernel = tilelang.compile(main, target="ascend")
+    for shape, row_off, col_off in [((23, 37), 2, 3), ((31, 45), 5, 7)]:
+        expected = torch.full((2, 2, 2, *shape), -77, dtype=source.dtype)
+        expected[1, 0, 1, row_off : row_off + 4, col_off : col_off + 15] = source[0]
+        expected[1, 0, 1, 4 + row_off : 8 + row_off, col_off : col_off + 15] = source[1]
+        output = torch.full_like(expected, -77).npu()
+        kernel(source.npu(), row_off, col_off, output)
+        torch.testing.assert_close(output.cpu(), expected, rtol=0, atol=0)
+
