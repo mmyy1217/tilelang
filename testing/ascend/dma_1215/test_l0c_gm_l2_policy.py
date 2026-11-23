@@ -16,6 +16,26 @@ def _gemm_32x64(a_gm, b_gm, acc):
     T.gemm(a, b, acc, transpose_B=True, clear_accum=True)
 
 
+L2_STORE_POLICIES = [
+    ("normal_fv", 0),
+    ("normal_lv", 1),
+    ("normal_pers", 2),
+    ("normal_red", 3),
+    ("notalloc_ci", 4),
+    ("notalloc_pw", 5),
+    ("notalloc_pi", 6),
+    ("notalloc_red", 7),
+    ("wbh_fv", 8),
+    ("wbh_lv", 9),
+    ("wbh_pers", 10),
+    ("wbh_red", 11),
+    ("wts_fv", 12),
+    ("wts_lv", 13),
+    ("wts_pers", 14),
+    ("wts_red", 15),
+]
+
+
 @pytest.mark.parametrize(
     "input_dtype,acc_dtype,output_dtype",
     [
@@ -25,7 +45,7 @@ def _gemm_32x64(a_gm, b_gm, acc):
         ("int8", "int32", "int32"),
     ],
 )
-@pytest.mark.parametrize("policy,mode", [("normal_fv", 0), ("normal_lv", 1), ("notalloc_ci", 4), ("notalloc_pw", 5)])
+@pytest.mark.parametrize("policy,mode", L2_STORE_POLICIES)
 def test_l0c_to_gm_l2_policy(input_dtype, acc_dtype, output_dtype, policy, mode):
     """检查各输出类型的 Fixpipe 写回指令收到指定的 L2 写策略。"""
 
