@@ -31,11 +31,11 @@ M、N、K 依次为矩阵乘的行、输出列和归约维。31 项 1215 特性�
 | 19 | UB→L1 连续原样搬入 | [test_ub_l1_contiguous.py](test_ub_l1_contiguous.py) | 32×32，BF16/FP16/FP32 的 CPU 预排紧凑 NZ 块经 AIV 原样搬入 L1，用单位矩阵乘读回校验；INT8 单独验证编译器拒绝该类型 |
 | 20 | UB→L1 ND→NZ | [test_ub_l1_nd2nz.py](test_ub_l1_nd2nz.py) | 覆盖全部 5 种支持组合：FP16→FP16、BF16→BF16、FP32→FP32（32×64）及 FP32↔BF16（32×128），单位矩阵乘读回重排结果 |
 | 21 | UB→L1 软件双写 | [test_ub_l1_dual.py](test_ub_l1_dual.py) | 同 20，双 AIV 各自通过 `T.dual_copy` 写入共享 L1 的半块，读回完整矩阵验证 |
-| 22 | GM→UB 连续/跨步 | [test_gm_ub_copy.py](test_gm_ub_copy.py) | 覆盖 Normal 跨步（1×1、4×15、4×16、4×17，INT8/16/32、FP16/BF16/FP32，UB 行宽 64）、Compact 紧凑搬运、打包 FP4，以及 5D GM 结合 `T.dynamic`/分核 `bx`/标量偏移跨步搬入 3D 流水 UB |
+| 22 | GM→UB 连续/跨步 | [test_gm_ub_copy.py](test_gm_ub_copy.py) | 覆盖全部 15 种支持 dtype（6 种有符号标量 + `uint8/16/32`、`fp8(e4m3/e8m0)`、`int64/uint64/float64` 及打包 FP4），含 Normal 跨步、Compact 紧凑搬运，以及 5D GM 结合 `T.dynamic`/分核 `bx`/标量偏移跨步搬入 3D 流水 UB |
 | 23 | GM→UB 右补齐 | [test_gm_ub_padding.py](test_gm_ub_padding.py) | 覆盖 INT8/16/32、FP16/BF16/FP32，`cols=3, 30` 右补齐至 32B 边界，`pad_value` 与 `data_select` 均核对有效列与填充位；另测 `T.dynamic` 行维+动态行起点，以及动态列长的编译期拒绝 |
 | 24 | GM→UB L2 读策略 | [test_gm_ub_l2_policy.py](test_gm_ub_l2_policy.py) | 4×32（FP32/BF16/INT8）。全覆盖对齐搬入指令的全部 15 个 Load 读策略枚举（`0~6`、`8~15`） |
 | 25 | GM→UB 软件分半 | [test_gm_ub_dual.py](test_gm_ub_dual.py) | 双 AIV 分别按 M（16×64）和 N（32×32）用 `T.dual_copy` 从 GM 读入各自半块（FP32/BF16）并写回校验 |
-| 26 | UB→GM 连续/跨步 | [test_ub_gm_copy.py](test_ub_gm_copy.py) | 覆盖 Normal 跨步（UB 行宽 64，目标四周预填 −77 保护区，6 种标量）、Compact 紧凑写回，以及 3D 流水 UB 结合 `T.dynamic`/分核 `bx`/标量偏移跨步写回 5D GM 单平面子区域 |
+| 26 | UB→GM 连续/跨步 | [test_ub_gm_copy.py](test_ub_gm_copy.py) | 覆盖全部 15 种支持 dtype（6 种有符号标量 + `uint8/16/32`、`fp8(e4m3/e8m0)`、`int64/uint64/float64` 及打包 FP4），含 Normal 跨步保护区验证、Compact 紧凑写回，以及 3D 流水 UB 结合 `T.dynamic`/分核 `bx`/标量偏移跨步写回 5D GM 单平面子区域 |
 | 27 | UB→GM L2 写策略 | [test_ub_gm_l2_policy.py](test_ub_gm_l2_policy.py) | 4×32（FP32/BF16/INT8）。全覆盖对齐写回指令的全部 16 个 Store 写策略枚举（`0~15`） |
 | 28 | UB→GM 软件分半 | [test_ub_gm_dual.py](test_ub_gm_dual.py) | 双 AIV 分别沿 M（16×64）或 N（32×32）通过 `T.dual_copy` 将各自的 UB 半块写回 GM |
 | 29 | UB→GM Atomic Add | [test_ub_gm_atomic_add.py](test_ub_gm_atomic_add.py) | 1D（2×32→32，6 种标量 dtype）与 2D 跨步子区域保护区原子累加，带符号输入与非零初值 |

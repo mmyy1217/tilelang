@@ -67,6 +67,39 @@ def test_gm_to_ub_fp4_packed():
     torch.testing.assert_close(actual.view(torch.uint8).cpu(), src_bytes, rtol=0, atol=0)
 
 
+EXTRA_DTYPES = [
+    ("uint8", 1),
+    ("uint16", 2),
+    ("uint32", 4),
+    ("float8_e4m3fn", 1),
+    ("float8_e8m0fnu", 1),
+    ("int64", 8),
+    ("uint64", 8),
+    ("float64", 8),
+]
+
+
+@pytest.mark.parametrize("dtype,elem_bytes", EXTRA_DTYPES)
+def test_gm_to_ub_all_remaining_dtypes(dtype, elem_bytes):
+    """补齐 uint8/16/32、fp8(e4m3/e8m0) 及 64-bit 的 Compact 与 Normal 跨步搬入，按字节精确比对。"""
+    if not hasattr(torch, dtype):
+        pytest.skip(f"PyTorch {dtype} unavailable")
+    torch_dtype = getattr(torch, dtype)
+    rows, cols, gap = 4, 15, 7
+
+    @T.prim_func
+    def main(src: T.Tensor((rows, cols + gap), dtype), out: T.Tensor((rows, cols), dtype)):
+        with T.Kernel(1):
+            ub = T.alloc_shared((rows, 32), dtype)
+            T.copy(src[:, :cols], ub[:, :cols])
+            T.copy(ub[:, :cols], out)
+
+    raw = (torch.arange(rows * (cols + gap) * elem_bytes, dtype=torch.uint8) * 13 + 5).reshape(rows, cols + gap, elem_bytes)
+    source = raw.view(torch_dtype).reshape(rows, cols + gap)
+    actual = tilelang.compile(main, target="ascend", out_idx=-1)(source.npu()).cpu()
+    torch.testing.assert_close(actual.view(torch.uint8), raw[:, :cols, :].reshape(rows, cols * elem_bytes), rtol=0, atol=0)
+
+
 @pytest.mark.parametrize("dtype", ["int8", "bfloat16", "float32"])
 def test_gm_to_ub_5d_and_dynamic_sources(dtype):
     """5D GM 结合 T.dynamic 维度、分核 bx 与标量偏移跨步搬入 3D 流水 UB。"""
