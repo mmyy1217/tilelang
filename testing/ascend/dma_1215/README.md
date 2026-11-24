@@ -1,12 +1,12 @@
 # A5 DMA 1215 开发自测
 
-以当前 31 项 L3 特性为 1215 验收基准，按下表的 L3 顺序一一对应独立测试文件 review。数值用例运行 kernel 后逐元素比较设备结果与 CPU 参考。L2 Cache 用例核对生成指令中的策略枚举，覆盖 DSL 到 Ascend C API 的参数传递。
+以当前 26 项 L3 特性为 1215 验收基准，按下表的 L3 顺序一一对应独立测试文件 review。数值用例运行 kernel 后逐元素比较设备结果与 CPU 参考。L2 Cache 用例核对生成指令中的策略枚举，覆盖 DSL 到 Ascend C API 的参数传递。
 
 GM→L1 的普通 DMA dtype 包括 `int8`、`uint8`、`int16`、`uint16`、`int32`、`uint32`、`float16`、`bfloat16`、`float32` 和 `float8_e4m3fn`。1215 的 FP8 验收范围仅包含 E4M3（`float8_e4m3fn`）。Packed FP4 的设备数值用例走 ND。DN 待核实。数值用例以原 dtype 完成 DMA，再用同位宽的 Cube 支持类型做单位矩阵乘读回 L1。FP4 主用例用 blockscaled GEMM 读回。
 
 ## 逐项 review
 
-M、N、K 依次为矩阵乘的行、输出列和归约维。31 项 1215 特性各自对应独立的测试文件：
+M、N、K 依次为矩阵乘的行、输出列和归约维。26 项 1215 特性各自对应独立的测试文件：
 
 | ID | 方向与特性 | 用例文件 | shape、dtype 与判据 |
 |---|---|---|---|
@@ -27,20 +27,15 @@ M、N、K 依次为矩阵乘的行、输出列和归约维。31 项 1215 特性�
 | 15 | L0C→UB NZ→NZ | [test_l0c_ub_nz.py](test_l0c_ub_nz.py) | 32×64 FP32 / INT32，UB 显式标注 `make_ascend_l0c_layout`，SIMT 按逻辑坐标读回；另测 16 对齐偏移子区域 `[16:48, 16:80]` |
 | 16 | L0C→UB 降精度 | [test_l0c_ub_cast.py](test_l0c_ub_cast.py) | 32×64，FP32→FP16/BF16，单目标 UB，覆盖整块及 32B 对齐宽行距 UB `(32, 80)` 切片写入 |
 | 17 | L0C→UB 指定 AIV | [test_l0c_ub_sub_blockid.py](test_l0c_ub_sub_blockid.py) | 两个 AIV 的 UB 预填 −7，逐一指定 `sub_blockid=0/1`，分别回读 16×16 FP32 矩阵验证另一侧保留保护值 |
-| 18 | L0C→UB 硬件双写 | [test_l0c_ub_dual.py](test_l0c_ub_dual.py) | 32×64 按 M 分成 16×64、按 N 分成 32×32，覆盖 FP32/INT32 的 ND 写出以及 FP32 的 NZ 保留写出 |
-| 19 | UB→L1 连续原样搬入 | [test_ub_l1_contiguous.py](test_ub_l1_contiguous.py) | 32×32，BF16/FP16/FP32 的 CPU 预排紧凑 NZ 块经 AIV 原样搬入 L1，用单位矩阵乘读回校验；INT8 单独验证编译器拒绝该类型 |
-| 20 | UB→L1 ND→NZ | [test_ub_l1_nd2nz.py](test_ub_l1_nd2nz.py) | 覆盖全部 5 种支持组合：FP16→FP16、BF16→BF16、FP32→FP32（32×64）及 FP32↔BF16（32×128），单位矩阵乘读回重排结果 |
-| 21 | UB→L1 软件双写 | [test_ub_l1_dual.py](test_ub_l1_dual.py) | 同 20，双 AIV 各自通过 `T.dual_copy` 写入共享 L1 的半块，读回完整矩阵验证 |
-| 22 | GM→UB 连续/跨步 | [test_gm_ub_copy.py](test_gm_ub_copy.py) | 覆盖全部 15 种支持 dtype（6 种有符号标量 + `uint8/16/32`、`fp8(e4m3/e8m0)`、`int64/uint64/float64` 及打包 FP4），含 Normal 跨步、Compact 紧凑搬运，以及 5D GM 结合 `T.dynamic`/分核 `bx`/标量偏移跨步搬入 3D 流水 UB |
-| 23 | GM→UB 右补齐 | [test_gm_ub_padding.py](test_gm_ub_padding.py) | 覆盖 INT8/16/32、FP16/BF16/FP32，`cols=3, 30` 右补齐至 32B 边界，`pad_value` 与 `data_select` 均核对有效列与填充位；另测 `T.dynamic` 行维+动态行起点，以及动态列长的编译期拒绝 |
-| 24 | GM→UB L2 读策略 | [test_gm_ub_l2_policy.py](test_gm_ub_l2_policy.py) | 4×32（FP32/BF16/INT8）。全覆盖对齐搬入指令的全部 15 个 Load 读策略枚举（`0~6`、`8~15`） |
-| 25 | GM→UB 软件分半 | [test_gm_ub_dual.py](test_gm_ub_dual.py) | 双 AIV 分别按 M（16×64）和 N（32×32）用 `T.dual_copy` 从 GM 读入各自半块（FP32/BF16）并写回校验 |
-| 26 | UB→GM 连续/跨步 | [test_ub_gm_copy.py](test_ub_gm_copy.py) | 覆盖全部 15 种支持 dtype（6 种有符号标量 + `uint8/16/32`、`fp8(e4m3/e8m0)`、`int64/uint64/float64` 及打包 FP4），含 Normal 跨步保护区验证、Compact 紧凑写回，以及 3D 流水 UB 结合 `T.dynamic`/分核 `bx`/标量偏移跨步写回 5D GM 单平面子区域 |
-| 27 | UB→GM L2 写策略 | [test_ub_gm_l2_policy.py](test_ub_gm_l2_policy.py) | 4×32（FP32/BF16/INT8）。全覆盖对齐写回指令的全部 16 个 Store 写策略枚举（`0~15`） |
-| 28 | UB→GM 软件分半 | [test_ub_gm_dual.py](test_ub_gm_dual.py) | 双 AIV 分别沿 M（16×64）或 N（32×32）通过 `T.dual_copy` 将各自的 UB 半块写回 GM |
-| 29 | UB→GM Atomic Add | [test_ub_gm_atomic_add.py](test_ub_gm_atomic_add.py) | 1D（2×32→32，6 种标量 dtype）与 2D 跨步子区域保护区原子累加，带符号输入与非零初值 |
-| 30 | UB→GM Atomic Max/Min | [test_ub_gm_atomic_max_min.py](test_ub_gm_atomic_max_min.py) | 2×32→32，6 种标量 dtype，分别与三路逐元素最大、最小值比较（各 dtype 的 A5 硬件结果待上卡确认） |
-| 31 | UB→UB Scatter ND→NZ | [test_ub_ub_scatter_nd2nz.py](test_ub_ub_scatter_nd2nz.py) | 32×128，FP16/BF16/FP32 同类型及 BF16↔FP32，含显式 `T.SimdVF()` 块内散列。按目标元素宽度解分形，去掉额外一行后比较逻辑矩阵 |
+| 18 | UB→L1 连续原样搬入 | [test_ub_l1_contiguous.py](test_ub_l1_contiguous.py) | 32×32，BF16/FP16/FP32 的 CPU 预排紧凑 NZ 块经 AIV 原样搬入 L1，用单位矩阵乘读回校验；INT8 单独验证编译器拒绝该类型 |
+| 19 | UB→L1 ND→NZ | [test_ub_l1_nd2nz.py](test_ub_l1_nd2nz.py) | 覆盖全部 5 种支持组合：FP16→FP16、BF16→BF16、FP32→FP32（32×64）及 FP32↔BF16（32×128），单位矩阵乘读回重排结果 |
+| 20 | GM→UB 连续/跨步 | [test_gm_ub_copy.py](test_gm_ub_copy.py) | 覆盖全部 15 种支持 dtype（6 种有符号标量 + `uint8/16/32`、`fp8(e4m3/e8m0)`、`int64/uint64/float64` 及打包 FP4），含 Normal 跨步、Compact 紧凑搬运，以及 5D GM 结合 `T.dynamic`/分核 `bx`/标量偏移跨步搬入 3D 流水 UB |
+| 21 | GM→UB 右补齐 | [test_gm_ub_padding.py](test_gm_ub_padding.py) | 覆盖 INT8/16/32、FP16/BF16/FP32，`cols=3, 30` 右补齐至 32B 边界，`pad_value` 与 `data_select` 均核对有效列与填充位；另测 `T.dynamic` 行维+动态行起点，以及动态列长的编译期拒绝 |
+| 22 | GM→UB L2 读策略 | [test_gm_ub_l2_policy.py](test_gm_ub_l2_policy.py) | 4×32（FP32/BF16/INT8）。全覆盖对齐搬入指令的全部 15 个 Load 读策略枚举（`0~6`、`8~15`） |
+| 23 | UB→GM 连续/跨步 | [test_ub_gm_copy.py](test_ub_gm_copy.py) | 覆盖全部 15 种支持 dtype（6 种有符号标量 + `uint8/16/32`、`fp8(e4m3/e8m0)`、`int64/uint64/float64` 及打包 FP4），含 Normal 跨步保护区验证、Compact 紧凑写回，以及 3D 流水 UB 结合 `T.dynamic`/分核 `bx`/标量偏移跨步写回 5D GM 单平面子区域 |
+| 24 | UB→GM L2 写策略 | [test_ub_gm_l2_policy.py](test_ub_gm_l2_policy.py) | 4×32（FP32/BF16/INT8）。全覆盖对齐写回指令的全部 16 个 Store 写策略枚举（`0~15`） |
+| 25 | UB→GM Atomic Add | [test_ub_gm_atomic_add.py](test_ub_gm_atomic_add.py) | 1D（2×32→32，6 种标量 dtype）与 2D 跨步子区域保护区原子累加，带符号输入与非零初值 |
+| 26 | UB→GM Atomic Max/Min | [test_ub_gm_atomic_max_min.py](test_ub_gm_atomic_max_min.py) | 2×32→32，6 种标量 dtype，分别与三路逐元素最大、最小值比较 |
 
 ## 运行
 
