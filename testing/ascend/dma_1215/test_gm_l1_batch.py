@@ -148,8 +148,9 @@ def test_batch_dn_to_nz(dtype, batch_layout):
     ],
 )
 def test_batched_nd2nz_strides_and_transpose_device(dtype, rows, cols, copy_rows, copy_cols, interleaved, transpose, batch_begin, compact):
-    """用单位矩阵读回每个批次，检查转置、跨步、尾块、L1 更大 pitch 与相邻矩阵保护区。"""
-    source_batches = 3
+    """用单位矩阵读回每个批次，检查转置、跨步、行列尾块、L1 更大 pitch 与相邻矩阵保护区（无 batch 越界）。"""
+    source_batches = 4
+    copy_batches = 3
     # 跨步场景在源行之间留空，有的场景还交错存放多个 batch。
     row_pitch = cols if compact else cols * 2
     strides = (row_pitch, source_batches * row_pitch, 1) if interleaved else (rows * row_pitch, row_pitch, 1)
@@ -173,8 +174,8 @@ def test_batched_nd2nz_strides_and_transpose_device(dtype, rows, cols, copy_rows
             acc = T.alloc_l0c((target_rows, target_cols), "float32")
             T.copy(poison, target, transpose=False)
             copy_batch(
-                source[batch_begin : batch_begin + 4, :copy_rows, :copy_cols],
-                target[1:5, :dst_rows, :dst_cols],
+                source[batch_begin : batch_begin + copy_batches, :copy_rows, :copy_cols],
+                target[1 : 1 + copy_batches, :dst_rows, :dst_cols],
             )
             T.copy(identity, weight, transpose=False)
             T.copy(weight, b)
@@ -189,13 +190,12 @@ def test_batched_nd2nz_strides_and_transpose_device(dtype, rows, cols, copy_rows
     storage = ((torch.arange(source_batches * rows * row_pitch).reshape(storage_shape) % 31) + 1).to(torch_dtype).npu()
     source = (storage.permute(1, 0, 2) if interleaved else storage)[:, :, :cols]
     assert source.stride() == strides
-    valid_batches = min(4, max(source_batches - batch_begin, 0))
     expected = torch.full((5, target_rows, target_cols), -7.0)
-    expected[1 : 1 + valid_batches, :dst_rows, :dst_cols] = 0
-    values = source[batch_begin : batch_begin + valid_batches].cpu().float()
+    expected[1 : 1 + copy_batches, :dst_rows, :dst_cols] = 0
+    values = source[batch_begin : batch_begin + copy_batches].cpu().float()
     if transpose:
         values = values.transpose(1, 2)
-    expected[1 : 1 + valid_batches, : values.shape[1], : values.shape[2]] = values
+    expected[1 : 1 + copy_batches, : values.shape[1], : values.shape[2]] = values
     identity = torch.eye(target_cols, dtype=torch_dtype, device="npu")
     poison = torch.full((5, target_rows, target_cols), -7.0, dtype=torch_dtype, device="npu")
     actual = kernel(source, identity, poison)

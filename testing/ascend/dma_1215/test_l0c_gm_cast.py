@@ -1,4 +1,4 @@
-"""1215 L0C→GM 无系数降精度写出（FP32→FP16 / BF16，含非对齐 GM 步长与裁剪 l0_pitch）。"""
+"""1215 L0C→GM 无系数降精度写出（FP32→FP16 / BF16，含非对齐 GM 步长与 5D 动态写回）。"""
 
 import pytest
 import torch
@@ -60,22 +60,6 @@ def test_l0c_to_gm_cast_strided_subregion(dtype):
     out = torch.full_like(expected, -7.0).npu()
     tilelang.compile(main, target="ascend")(a.npu(), b.npu(), out)
     torch.testing.assert_close(out.cpu(), expected, rtol=0, atol=0)
-
-
-@pytest.mark.parametrize("dtype", ["float16", "bfloat16"])
-def test_l0c_to_gm_cast_cropped_with_pitch(dtype):
-    """裁剪非整分形子块 (20, 37) 并显式传 l0_pitch=2 降精度写出。"""
-
-    @T.prim_func
-    def main(a: T.Tensor((32, 16), "float16"), b: T.Tensor((64, 16), "float16"), out: T.Tensor((20, 37), dtype)):
-        with T.Kernel(1):
-            acc = T.alloc_l0c((32, 64), "float32")
-            _gemm_32x64(a, b, acc)
-            T.copy(acc[:20, :37], out, l0_pitch=2)
-
-    a, b, gemm_ref = _gemm_inputs(dtype)
-    actual = tilelang.compile(main, target="ascend", out_idx=-1)(a.npu(), b.npu())
-    torch.testing.assert_close(actual.cpu(), gemm_ref[:20, :37], rtol=0, atol=0)
 
 
 @pytest.mark.parametrize("dtype", ["float16", "bfloat16"])

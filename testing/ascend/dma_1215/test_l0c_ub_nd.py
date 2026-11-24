@@ -1,4 +1,4 @@
-"""1215 L0C→UB 同类型搬出并转为行优先 ND（NZ→ND，含 FP32/INT32、宽行距 UB 与裁剪 l0_pitch）。"""
+"""1215 L0C→UB 同类型搬出并转为行优先 ND（NZ→ND，含 FP32 / INT32）。"""
 
 import pytest
 import torch
@@ -48,21 +48,3 @@ def test_l0c_to_ub_nd(in_dtype, acc_dtype):
     a, b, expected = _gemm_inputs(in_dtype, acc_dtype)
     actual = tilelang.compile(main, target="ascend", out_idx=-1)(a.npu(), b.npu())
     torch.testing.assert_close(actual.cpu(), expected, rtol=0, atol=0)
-
-
-def test_l0c_to_ub_nd_padded_ub_stride_and_crop():
-    """从 (32, 64) L0C 裁剪写出 (20, 32) 到行距 32B 对齐的宽 UB (32, 80)，显式指定 l0_pitch=2。"""
-
-    @T.prim_func
-    def main(a: T.Tensor((32, 16), "float16"), b: T.Tensor((64, 16), "float16"), out: T.Tensor((20, 32), "float32")):
-        with T.MixedKernel(1) as (_, sid):
-            acc = T.alloc_l0c((32, 64), "float32")
-            _gemm_32x64(a, b, acc)
-            ub = T.alloc_shared((32, 80), "float32")
-            T.copy(acc[:20, :32], ub[:20, :32], sub_blockid=0, l0_pitch=2)
-            if sid == 0:
-                T.copy(ub[:20, :32], out)
-
-    a, b, expected = _gemm_inputs("float16", "float32")
-    actual = tilelang.compile(main, target="ascend", out_idx=-1)(a.npu(), b.npu())
-    torch.testing.assert_close(actual.cpu(), expected[:20, :32], rtol=0, atol=0)

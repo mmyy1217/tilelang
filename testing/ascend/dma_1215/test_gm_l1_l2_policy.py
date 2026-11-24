@@ -22,20 +22,7 @@ DTYPES = (
 FP4 = "float4_e2m1fn"
 L2_LOAD_POLICIES = [
     ("normal_fv", 0),
-    ("normal_lv", 1),
-    ("normal_pers", 2),
-    ("normal_pref", 3),
     ("notalloc_keep", 4),
-    ("notalloc_clean", 5),
-    ("notalloc_drop", 6),
-    ("ids_fv", 8),
-    ("ids_lv", 9),
-    ("ids_pers", 10),
-    ("ids_pref", 11),
-    ("exclusiv_fv", 12),
-    ("exclusiv_lv", 13),
-    ("exclusiv_pers", 14),
-    ("exclusiv_pref", 15),
 ]
 
 

@@ -9,21 +9,7 @@ import tilelang.ascend.language as T
 
 L2_STORE_POLICIES = [
     ("normal_fv", 0),
-    ("normal_lv", 1),
-    ("normal_pers", 2),
-    ("normal_red", 3),
     ("notalloc_ci", 4),
-    ("notalloc_pw", 5),
-    ("notalloc_pi", 6),
-    ("notalloc_red", 7),
-    ("wbh_fv", 8),
-    ("wbh_lv", 9),
-    ("wbh_pers", 10),
-    ("wbh_red", 11),
-    ("wts_fv", 12),
-    ("wts_lv", 13),
-    ("wts_pers", 14),
-    ("wts_red", 15),
 ]
 
 

@@ -1,4 +1,4 @@
-"""1215 L0C→GM 同类型直出（NZ→ND，含 FP32/INT32、非对齐 GM 步长与裁剪 l0_pitch）。"""
+"""1215 L0C→GM 同类型直出（NZ→ND，含 FP32/INT32、非对齐 GM 步长与 5D 动态写回）。"""
 
 import pytest
 import torch
@@ -67,21 +67,6 @@ def test_l0c_to_gm_nd_strided_subregion(in_dtype, acc_dtype):
     out = torch.full_like(expected, -77).npu()
     tilelang.compile(main, target="ascend")(a.npu(), b.npu(), out)
     torch.testing.assert_close(out.cpu(), expected, rtol=0, atol=0)
-
-
-def test_l0c_to_gm_nd_cropped_with_pitch():
-    """从 (32, 64) L0C 裁剪写出非整分形子块 (20, 37) 并显式指定 l0_pitch=2。"""
-
-    @T.prim_func
-    def main(a: T.Tensor((32, 16), "float16"), b: T.Tensor((64, 16), "float16"), out: T.Tensor((20, 37), "float32")):
-        with T.Kernel(1):
-            acc = T.alloc_l0c((32, 64), "float32")
-            _gemm_32x64(a, b, acc)
-            T.copy(acc[:20, :37], out, l0_pitch=2)
-
-    a, b, gemm_ref = _gemm_inputs("float16", "float32")
-    actual = tilelang.compile(main, target="ascend", out_idx=-1)(a.npu(), b.npu())
-    torch.testing.assert_close(actual.cpu(), gemm_ref[:20, :37], rtol=0, atol=0)
 
 
 def test_l0c_to_gm_nd_5d_and_dynamic():

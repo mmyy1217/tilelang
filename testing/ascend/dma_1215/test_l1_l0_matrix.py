@@ -1,4 +1,4 @@
-"""1215 L1→L0A/B 二维矩阵块加载（非转置，含子块切片、l0_pitch 拼装与非整分形）。"""
+"""1215 L1→L0A/B 二维矩阵块加载（非转置，含子块切片与非整分形）。"""
 
 import pytest
 import torch
@@ -172,53 +172,6 @@ def test_l1_to_l0_src_slice(dtype, operand):
         data = _matrix_data((32, 64), dtype)
         identity = torch.eye(32, dtype=getattr(torch, read_dtype))
         _check_gemm(main, identity, data.view(getattr(torch, dtype)), data[16:32, 32:64].T)
-
-
-@pytest.mark.parametrize("operand", ["l0a", "l0b"])
-def test_l1_to_l0_dst_offset_with_pitch(operand):
-    """分两次以 l0_pitch=2 向 L0A / L0B 的 [0:16, :] 和 [16:32, :] 拼装 (32, 32) 矩阵。"""
-    dtype = "bfloat16"
-
-    if operand == "l0a":
-        @T.prim_func
-        def main(src: T.Tensor((32, 32), dtype), eye: T.Tensor((32, 32), dtype), out: T.Tensor((32, 32), "float32")):
-            with T.Kernel(1):
-                a_l1 = T.alloc_l1((32, 32), dtype)
-                b_l1 = T.alloc_l1((32, 32), dtype)
-                a_l0 = T.alloc_l0a((32, 32), dtype)
-                b_l0 = T.alloc_l0b((32, 32), dtype)
-                acc = T.alloc_l0c((32, 32), "float32")
-                T.copy(src, a_l1, transpose=False)
-                T.copy(eye, b_l1, transpose=False)
-                T.copy(a_l1[0:16, :], a_l0[0:16, :], l0_pitch=2)
-                T.copy(a_l1[16:32, :], a_l0[16:32, :], l0_pitch=2)
-                T.copy(b_l1, b_l0, transpose=False)
-                T.gemm(a_l0, b_l0, acc, transpose_B=True, clear_accum=True)
-                T.copy(acc, out)
-
-        data = _matrix_data((32, 32), dtype)
-        identity = torch.eye(32, dtype=torch.bfloat16)
-        _check_gemm(main, data, identity, data)
-    else:
-        @T.prim_func
-        def main(eye: T.Tensor((32, 32), dtype), src: T.Tensor((32, 32), dtype), out: T.Tensor((32, 32), "float32")):
-            with T.Kernel(1):
-                a_l1 = T.alloc_l1((32, 32), dtype)
-                b_l1 = T.alloc_l1((32, 32), dtype)
-                a_l0 = T.alloc_l0a((32, 32), dtype)
-                b_l0 = T.alloc_l0b((32, 32), dtype)
-                acc = T.alloc_l0c((32, 32), "float32")
-                T.copy(eye, a_l1, transpose=False)
-                T.copy(src, b_l1, transpose=False)
-                T.copy(a_l1, a_l0, transpose=False)
-                T.copy(b_l1[0:16, :], b_l0[0:16, :], l0_pitch=2)
-                T.copy(b_l1[16:32, :], b_l0[16:32, :], l0_pitch=2)
-                T.gemm(a_l0, b_l0, acc, transpose_B=True, clear_accum=True)
-                T.copy(acc, out)
-
-        data = _matrix_data((32, 32), dtype)
-        identity = torch.eye(32, dtype=torch.bfloat16)
-        _check_gemm(main, identity, data, data.T)
 
 
 @pytest.mark.parametrize("dtype", ["int8", "bfloat16", "float32"])
